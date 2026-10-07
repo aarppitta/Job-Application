@@ -1,0 +1,61 @@
+Arpita Chaudhari
+Industrial Software Engineer · IIoT & OT Systems
+github.com/aarppitta | linkedin.com/in/arpita-chaudhari
+
+PROFESSIONAL SUMMARY
+
+Industrial Software Engineer with hands-on expertise in IIoT systems, WebSCADA platforms, and industrial protocol communication. Builds custom Python-based OPC servers, 21 CFR Part 11-compliant WebSCADA applications, OPC-UA tag management tools, and Windows service-packaged deployments for pharmaceutical and manufacturing environments. Proficient in Angular and FastAPI for full-stack industrial applications; experienced in leading junior engineers and delivering production-grade systems end-to-end. MSc Computer Science, University of Greenwich, London.
+
+PROFESSIONAL EXPERIENCE
+
+Kevision Systems · Ahmedabad, India
+System Software Engineer — Industrial Automation | April 2026 – Present
+- Design and develop industrial automation software — WebSCADA platforms, OPC servers, SCADA interfaces and pharma machine data-logging tools for manufacturing environments.
+- Build Python-based backend services (FastAPI, Django) for industrial data acquisition and PLC communication via OPC-UA, Modbus TCP/RTU, FINS Serial and FINS Ethernet protocols.
+- Develop Angular frontend applications for real-time process monitoring, operator controls, recipe management, machine configuration and production reporting.
+- Implement 21 CFR Part 11 compliance features — electronic audit trails, digital signature workflows and data integrity controls for regulated pharma environments.
+- Package production Python applications as standalone Windows executables (PyInstaller) and register them as persistent Windows services using NSSM for zero-dependency deployment on production-floor machines.
+- Lead junior developers — code reviews, coding standards, task assignment and technical mentoring across concurrent projects.
+
+Quarks Systems · Ahmedabad, India
+Junior Full Stack Developer | August 2025 – December 2025
+- Built and maintained RESTful APIs in Node.js/Express.js; integrated backend services with camera and printing hardware modules.
+- Maintained Postman API documentation, improving cross-team integration efficiency by ~30%.
+
+Fortray Global Services Limited · London, United Kingdom
+Full Stack Developer Intern — MEAN Stack | July 2023 – December 2024
+- Built backend services in Node.js/Express.js with MongoDB, deployed to AWS EC2, with JWT authentication and RBAC.
+- Worked in Agile sprints delivering end-to-end frontend/backend integration across multiple release cycles.
+
+KEY PROJECTS
+
+L2 LineSync — WebSCADA System (Angular · FastAPI · Python · MySQL · PyInstaller · NSSM · 21 CFR Part 11)
+- L2 industrial process-monitoring platform — acquires real-time process data from the L1 server and displays live machine status, alarms and process values across production lines.
+- Recipe management: full CRUD for recipes, per-machine recipe assignment, and per-machine / per-recipe production reports.
+- User management: group-level and user-level CRUD, multi-tier RBAC (operator, supervisor, admin), configurable security policy, change-password functionality and feature-level access-rights control.
+- Machine registration and configuration: register machines, configure parameters, manage machine-level settings; settings module includes database backup and restore for administrators.
+- Digital signature functionality — users digitally sign off critical actions (recipe approvals, batch releases) with credentials that are cryptographically recorded, meeting 21 CFR Part 11 electronic signature requirements.
+- Audit module: tamper-evident log of all system and user actions, with electronic audit trails and data integrity controls for pharma and regulated manufacturing compliance.
+- Packaged the FastAPI backend as a standalone Windows executable using PyInstaller and registered it as a persistent background service via NSSM.
+
+OPC Server — Custom Industrial Data Gateway (Python · Django · MySQL · OPC-UA · Modbus TCP/RTU · FINS Serial · FINS Ethernet)
+- Engineered a fully custom Python OPC server from scratch as an open-source alternative to commercial OPC servers such as Kepware.
+- Pluggable, protocol-agnostic driver architecture with four production drivers: Modbus TCP/RTU, FINS Serial, FINS Ethernet and OPC-UA.
+- Reads live process data from PLCs and persists it into MySQL with a normalised schema supporting historical analysis, trend reporting and alarm logging.
+
+Pulse Connect — OPC-UA Tag Browser & Config Generator (Python · OPC-UA (asyncua) · Angular · FastAPI · MySQL)
+- Connects to an OPC-UA server, browses the tag namespace, and lets engineers classify tags as Process Tags or Alarm Tags through a guided UI.
+- Generates a structured config.ini file consumed directly by machine data-logging services.
+- Reduced commissioning time for new machines by letting non-specialist engineers configure data-logging end-to-end.
+
+Pharma Processing Machine — Configuration Tool (Python · config.ini · Industrial Protocols · Pharma Manufacturing)
+- Python utility that generates config.ini files for pharma processing machines (IP addresses, database settings, trigger bits).
+- Validated configuration workflow deployed in a regulated pharma manufacturing environment.
+
+Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIEW · Zenon)
+- Angular-based SCADA application with real-time operator screens for compression machines.
+- Defined the data interface contract between the Angular frontend and the LabVIEW / Zenon backend layer.
+- Leading a junior developer on this project — component architecture, code review, integration testing and delivery planning.
+
+EDUCATION
+MSc Computer Science, University of Greenwich, London

@@ -1,0 +1,14 @@
+fastapi==0.115.14
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.0.54
+psycopg[binary]==3.3.6
+pydantic==2.13.5
+pydantic-settings==2.15.0
+PyJWT==2.15.1
+bcrypt==5.0.0
+httpx==0.28.1
+python-docx==1.2.0      # tailored CV + cover letter as Word files
+anthropic==1.9.0     # optional: only used when AI_API_KEY is set
+
+# tests
+pytest==9.1.1
