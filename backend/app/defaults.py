@@ -176,6 +176,26 @@ ROLE_FAMILIES = {
 }
 
 
+def starting_profile() -> dict:
+    """The CV used when the profile is first created: PROFILE_JSON / PROFILE_FILE if set, else Arpita's CV above.
+    Only keys of DEFAULT_PROFILE are used; anything missing falls back to the default."""
+    import json
+
+    raw = settings.profile_json
+    if not raw and settings.profile_file:
+        with open(settings.profile_file, encoding="utf-8") as f:
+            raw = f.read()
+    if not raw:
+        return DEFAULT_PROFILE
+    custom = json.loads(raw)
+    unknown = set(custom) - set(DEFAULT_PROFILE)
+    if unknown:
+        raise ValueError(f"PROFILE_JSON has unknown keys: {', '.join(sorted(unknown))}")
+    profile = {**DEFAULT_PROFILE, **custom}
+    profile["skills"] = [s if isinstance(s, dict) else {"name": s, "years": None} for s in profile["skills"]]
+    return profile
+
+
 def user_settings(profile) -> dict:
     """Default settings overwritten by whatever the user saved."""
     merged = {**DEFAULT_SETTINGS, **(profile.settings or {})}

@@ -1,0 +1,9 @@
+# Not needed on Vercel (the frontend is built there, Python packages are installed there)
+.env
+**/__pycache__
+backend/venv
+backend/.venv
+backend/tests
+frontend/node_modules
+frontend/dist
+start.sh

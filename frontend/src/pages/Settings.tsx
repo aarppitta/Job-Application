@@ -24,6 +24,7 @@ function YesNo({ label, value, onChange }: { label: string; value: boolean | nul
 export default function Settings() {
   const { data: loadedProfile } = useFetch("/api/profile");
   const { data: loadedSettings } = useFetch("/api/settings");
+  const { data: info } = useFetch<{ mode: string }>("/api/info");
   const [p, setP] = useState<any>(null);
   const [s, setS] = useState<any>(null);
   const [skills, setSkills] = useState("");
@@ -174,7 +175,11 @@ export default function Settings() {
             <input type="time" className={inputClass} value={s.daily_start_time} onChange={(e) => setS({ ...s, daily_start_time: e.target.value })} />
           </Field>
         </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted">The backend must be running (./start.sh). If the computer was off at that time, it starts as soon as the backend runs again that day.</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted">
+          {info?.mode === "serverless"
+            ? "On Vercel the daily run is started by Vercel Cron (times in vercel.json, UTC), not by this time. The switch above still turns it on or off."
+            : "The backend must be running (./start.sh). If the computer was off at that time, it starts as soon as the backend runs again that day."}
+        </p>
         <h3 className="mb-3 mt-5 text-sm font-semibold">Score weights</h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Object.entries(s.weights).map(([key, value]) => (

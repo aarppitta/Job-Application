@@ -2,7 +2,7 @@
 from app.auth import check_password, hash_password
 from app.config import settings
 from app.database import SessionLocal
-from app.defaults import DEFAULT_PROFILE
+from app.defaults import starting_profile
 from app.models import Profile, User
 
 
@@ -19,12 +19,12 @@ def ensure_master_user() -> None:
 
         profile = db.query(Profile).filter_by(user_id=user.id).first()
         if profile is None:
-            db.add(Profile(user_id=user.id, settings={}, **DEFAULT_PROFILE))
+            db.add(Profile(user_id=user.id, settings={}, **starting_profile()))
         else:
             # Older profiles had no CV bullet points: fill them in from the standard CV.
             if any("bullets" not in e for e in profile.experience or []):
-                profile.experience = DEFAULT_PROFILE["experience"]
+                profile.experience = starting_profile()["experience"]
             if any("bullets" not in p for p in profile.projects or []):
-                profile.projects = DEFAULT_PROFILE["projects"]
+                profile.projects = starting_profile()["projects"]
 
         db.commit()

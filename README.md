@@ -24,6 +24,34 @@ Don't use plain `uvicorn …`; it may use the system Python and crash with `No m
 
 Jobs found elsewhere (LinkedIn, Indeed…): **Jobs → Import job** and paste the description.
 
+## Deploy on Vercel + Neon
+
+The same code runs locally (`./start.sh`, background threads) and on Vercel (serverless: searches run in resumable
+~4-minute steps, started by **Search now**, the **Automation** page while it is open, and 6 short Vercel Cron steps every
+morning, 03:00–08:00 UTC = 08:30–13:30 IST; change the times in `vercel.json`). All settings are environment variables: see `.env.example`.
+
+1. **Neon**: create a project in region **AWS Europe Central 1 (Frankfurt)** (the app's functions run in `fra1`).
+   In *Connect*, turn **Connection pooling on** and copy the connection string (host contains `-pooler`).
+2. **Move your current data (optional, do this BEFORE the first deploy)**, with Neon's *direct* (non-pooled) string:
+   ```bash
+   pg_dump --no-owner --no-acl germany_jobs | psql "postgresql://…direct-host…/neondb?sslmode=require"
+   ```
+3. **Vercel**: *Add New → Project*, import the repository and set **Root Directory** to `germany-job-automation`
+   (or run `npx vercel` inside this folder). `vercel.json` already configures the build, the API and the crons.
+4. **Environment variables** (Project → Settings → Environment Variables):
+   | Name | Value |
+   |---|---|
+   | `DATABASE_URL` | the Neon pooled connection string |
+   | `SECRET_KEY` | `python3 -c "import secrets; print(secrets.token_urlsafe(40))"` |
+   | `MASTER_USERNAME` / `MASTER_PASSWORD` | your login (the default password is refused on Vercel) |
+   | `CRON_SECRET` | another long random text (protects the daily cron) |
+   | `AI_API_KEY` *(optional)* | Anthropic key for research, mock grading, answer drafts |
+   | `JOB_KEYWORDS`, `PROFILE_JSON` *(optional)* | other roles / someone else's CV |
+5. **Deploy**, open the URL, log in. Tables are created automatically on the first request.
+
+Limits on the free Hobby plan: one function call ≤ 300 s (handled by the steps), crons at most daily (hence 6 of them).
+On Pro you can run the cron more often (e.g. `*/30 * * * *`) and raise `STEP_SECONDS`.
+
 ## Tests
 
 ```bash

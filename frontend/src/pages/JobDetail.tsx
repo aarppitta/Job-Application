@@ -47,7 +47,7 @@ export default function JobDetail() {
   if (error) return <ErrorText error={error} />;
   if (!job || !a) return <SkeletonPage />;
   const cvVersion = version ?? a.application?.cv_version ?? a.cv_plan.cv_version;
-  const file = (kind: string) => `Arpita_Chaudhari_${kind}_${job.company.replace(/\W+/g, "_")}.docx`;
+  const file = (kind: string) => `${kind}_${job.company.replace(/\W+/g, "_")}.docx`;
   const refresh = () => { reload(); reloadAnalysis(); };
 
   const markApplied = () =>

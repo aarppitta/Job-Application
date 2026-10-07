@@ -1,4 +1,6 @@
 """Saving jobs (with duplicate check + JD versions) and scoring them."""
+import time
+
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -7,7 +9,7 @@ from app.logic import dedup
 from app.logic.jd_parser import parse_job
 from app.logic.scoring import score_job
 from app.models import Company, JDVersion, Job, JobSource, Profile, Score, now
-from app.sources import SourceBlocked, search
+from app.sources import SOURCES, SourceBlocked, search
 
 
 def find_duplicate(db: Session, user_id: int, info: dict, company_key: str) -> tuple[Job | None, str]:
@@ -135,3 +137,49 @@ def search_now(db: Session, profile: Profile, source_names: list[str], queries: 
                     score(db, job, profile)
             db.commit()
     return summary
+
+
+# ------------------------------------------------------------------ step-by-step search (serverless, resumable)
+
+
+def search_pairs(s: dict) -> list[tuple[str, str]]:
+    """Every (source, role) to search, source by source so a company list is downloaded once and then cached."""
+    return [(src, q) for src in s["sources"] if src in SOURCES for q in s["search_queries"]]
+
+
+def search_step(db: Session, profile: Profile, cursor: int, seconds: float, blocked: list[str] | None = None,
+                on_job=None, on_log=None) -> dict:
+    """Search from `cursor` until `seconds` are used up. Call again with the returned cursor to continue.
+    Works the same locally and on Vercel (where one call may run at most a few minutes)."""
+    blocked = blocked if blocked is not None else []
+    pairs = search_pairs(user_settings(profile))
+    started = time.monotonic()
+    out = {"found": 0, "new": 0, "duplicates": 0, "errors": []}
+    while cursor < len(pairs) and time.monotonic() - started < seconds:
+        source, query = pairs[cursor]
+        cursor += 1
+        if source in blocked:
+            continue
+        if on_log:
+            on_log(f"Searching {source}: {query}")
+        try:
+            raws = search(source, query, user_settings(profile))
+        except SourceBlocked as exc:
+            blocked.append(source)
+            out["errors"].append(str(exc))
+            continue
+        except Exception as exc:  # one broken source must not stop the search
+            out["errors"].append(f"{source} failed: {exc}")
+            continue
+        for raw in raws:
+            out["found"] += 1
+            job, outcome, why = save_job(db, profile.user_id, raw)
+            if outcome == "duplicate":
+                out["duplicates"] += 1
+            else:
+                out["new"] += outcome == "new"
+                score(db, job, profile)
+            if on_job:
+                on_job(job, outcome, why)
+        db.commit()
+    return {**out, "cursor": cursor, "total": len(pairs), "done": cursor >= len(pairs), "blocked": blocked}

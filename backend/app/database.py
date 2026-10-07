@@ -4,7 +4,11 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+# Serverless (Vercel): each instance keeps only a tiny pool; Neon's pooled endpoint (-pooler) does the real pooling.
+# Neon's pooled endpoint (PgBouncer, transaction mode) and psycopg's automatic prepared statements don't mix: turn them off there.
+engine = create_engine(settings.database_url, pool_pre_ping=True, pool_recycle=300,
+                       pool_size=1 if settings.serverless else settings.db_pool_size, max_overflow=2 if settings.serverless else 10,
+                       connect_args={"prepare_threshold": None} if "-pooler" in settings.database_url else {})
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 

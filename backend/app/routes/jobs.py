@@ -7,6 +7,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.auth import current_profile
+from app.config import settings as app_config
 from app.database import get_db
 from app.defaults import CV_VERSIONS, user_settings
 from app.logic import writer
@@ -158,6 +159,18 @@ def search_now(body: SearchRequest, profile: Profile = Depends(current_profile),
     settings = user_settings(profile)
     sources = [s for s in (body.sources or settings["sources"]) if s in SOURCES]
     return job_service.search_now(db, profile, sources, body.queries or settings["search_queries"])
+
+
+class SearchStep(BaseModel):
+    cursor: int = 0
+    blocked: list[str] = []
+    seconds: float = 50
+
+
+@router.post("/search-step")
+def search_step(body: SearchStep, profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
+    """One part of "Search now" (≤ `seconds`). The page calls it again with the returned cursor until done."""
+    return job_service.search_step(db, profile, body.cursor, min(body.seconds, app_config.step_seconds), list(body.blocked))
 
 
 @router.post("/rescore-all")

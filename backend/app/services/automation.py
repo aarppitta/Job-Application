@@ -8,6 +8,7 @@ import threading
 import time
 from datetime import UTC, datetime
 
+from app.config import settings
 from app.database import SessionLocal
 from app.defaults import user_settings
 from app.models import AutomationLog, AutomationRun, Profile, now
@@ -24,10 +25,48 @@ def start(db, profile: Profile, overrides: dict) -> AutomationRun:
                                             AutomationRun.status.in_(("RUNNING", "PAUSED"))).first()
     if active:
         raise ValueError("Automation is already running. Stop it first.")
-    run = AutomationRun(user_id=profile.user_id, status="RUNNING", config={**user_settings(profile), **overrides})
+    run = AutomationRun(user_id=profile.user_id, status="RUNNING", config={**user_settings(profile), **overrides, "cursor": 0, "blocked": []})
     db.add(run)
     db.commit()
-    threading.Thread(target=Runner(run.id).run, daemon=True).start()
+    if settings.serverless:  # no threads on Vercel: the run advances with step() (browser loop + Vercel Cron)
+        db.add(AutomationLog(run_id=run.id, level="INFO", message="Automation started (serverless: runs in steps)"))
+        db.commit()
+    else:
+        threading.Thread(target=Runner(run.id).run, daemon=True).start()
+    return run
+
+
+def step(db, run: AutomationRun, seconds: float) -> AutomationRun:
+    """Serverless: continue a RUNNING run for up to `seconds`, from where the last step stopped. One full pass per run."""
+    if run.status != "RUNNING":
+        return run
+    profile = db.query(Profile).filter_by(user_id=run.user_id).one()
+    log = lambda message, level="INFO", job_id=None: db.add(AutomationLog(run_id=run.id, message=message, level=level, job_id=job_id))
+
+    def on_job(job, outcome, why):
+        if outcome == "duplicate":
+            run.duplicates += 1
+            return
+        run.discovered += 1
+        log(f"ATS {job.ats_score:.0f} · {job.title} · {job.company}", job_id=job.id)
+        if job.status == "QUALIFIED":
+            run.qualified += 1
+            log(f"MATCH: {job.title} · {job.company} (score {job.ats_score:.0f})", job_id=job.id)
+
+    cfg = dict(run.config)
+    result = jobs.search_step(db, profile, cfg.get("cursor", 0), seconds, list(cfg.get("blocked", [])), on_job, log)
+    run.errors += len(result["errors"])
+    for error in result["errors"]:
+        log(error, "WARNING")
+    db.refresh(run)  # the user may have pressed Pause/Stop during this step
+    run.config = {**cfg, "cursor": result["cursor"], "blocked": result["blocked"]}
+    log(f"Step done: {result['cursor']}/{result['total']} searches")
+    if result["done"] and run.status == "RUNNING":
+        run.status, run.ended_at = "FINISHED", now()
+        run.summary = (f"All searches done. {run.qualified} new matching jobs (score ≥ {cfg['min_score']}). "
+                       "Open Jobs to get your tailored CV and cover letter.")
+        log(run.summary)
+    db.commit()
     return run
 
 

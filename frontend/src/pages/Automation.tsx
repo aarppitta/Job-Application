@@ -1,9 +1,9 @@
 // Start / pause / stop the 6-hour automation and watch its live log.
-import { Bot, CircleAlert, History, Pause, Play, Radar, Search, Square, Target, Terminal, Copy as Duplicate } from "lucide-react";
+import { Bot, CircleAlert, Cloud, History, Pause, Play, Radar, Search, Square, Target, Terminal, Copy as Duplicate } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "../api";
-import { Button, Card, ErrorText, Field, KpiCard, PageTitle, ProgressBar, Table, formatDate, formatTime, inputClass } from "../components/ui";
+import { Button, Card, ErrorText, Field, KpiCard, Notice, PageTitle, ProgressBar, Table, formatDate, formatTime, inputClass } from "../components/ui";
 import type { Run } from "../types";
 import { useFetch } from "../useFetch";
 
@@ -21,6 +21,30 @@ export default function Automation() {
   const { data: run, reload } = useFetch<Run | null>("/api/automation/status", 3);
   const { data: settings } = useFetch("/api/settings");
   const { data: runs } = useFetch<Run[]>("/api/automation/runs", 15);
+  const { data: info } = useFetch<{ mode: string; step_seconds: number }>("/api/info");
+  const serverless = info?.mode === "serverless";
+  const stepping = useRef(false);
+
+  // Serverless (Vercel): there is no background thread, so this page moves the run forward in ≤ 50 s steps.
+  useEffect(() => {
+    if (!serverless || run?.status !== "RUNNING" || stepping.current) return;
+    let alive = true;
+    stepping.current = true;
+    (async () => {
+      try {
+        while (alive) {
+          const r = await api<Run>("/api/automation/step", { method: "POST" });
+          reload();
+          if (r.status !== "RUNNING") break;
+        }
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        stepping.current = false;
+      }
+    })();
+    return () => { alive = false; };
+  }, [serverless, run?.status, reload]);
   const [config, setConfig] = useState({ max_runtime_hours: 6, min_score: 80 });
   const [logs, setLogs] = useState<Log[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +105,12 @@ export default function Automation() {
     <div className="space-y-5">
       <PageTitle title="Automation" subtitle="Runs on the server: closing this page does not stop it. It also starts by itself every day (Settings → daily start time)." />
       <ErrorText error={error} />
+      {serverless && (
+        <Notice tone="ai" icon={Cloud}>
+          <b>Running on Vercel (serverless).</b> There is no always-on server, so a run moves forward in steps: while this page is open
+          (every ~50 s), and every morning through Vercel Cron (several short steps, see <code>vercel.json</code>). One run = one full pass over all sources.
+        </Notice>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card ai title="Automation status" icon={Bot} className="lg:col-span-2">

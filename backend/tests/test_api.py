@@ -2,6 +2,8 @@
 import io
 import time
 
+import pytest
+
 from docx import Document
 
 from app.defaults import DEFAULT_PROFILE
@@ -338,3 +340,51 @@ def test_answer_guides_and_ai_draft(client, monkeypatch):
     r = client.post(f"/api/jobs/{job_id}/answer-draft", json={"question": intro["question"]}).json()
     assert r["draft"].startswith("I'm Arpita") and any("Kubernetes" in w for w in r["warnings"])  # invented claim flagged
     assert client.post(f"/api/jobs/{job_id}/answer-draft", json={"question": "Unknown?"}).status_code == 404
+
+
+def test_config_for_vercel_and_neon(monkeypatch):
+    from app.config import DEFAULT_PASSWORD, DEFAULT_SECRET, Settings
+
+    neon = Settings(DATABASE_URL="postgresql://u:p@ep-x-pooler.eu-central-1.aws.neon.tech/db?sslmode=require&channel_binding=require")
+    assert neon.database_url.startswith("postgresql+psycopg://u:p@ep-x-pooler") and "sslmode=require" in neon.database_url
+    monkeypatch.setenv("VERCEL", "1")
+    unsafe = Settings(run_mode="auto", secret_key=DEFAULT_SECRET, master_password=DEFAULT_PASSWORD)
+    assert unsafe.serverless
+    with pytest.raises(RuntimeError, match="SECRET_KEY and MASTER_PASSWORD"):
+        unsafe.check_for_production()
+    Settings(run_mode="auto", secret_key="x" * 40, master_password="a-long-password").check_for_production()  # ok
+
+
+def test_profile_from_json(monkeypatch):
+    from app import defaults
+
+    monkeypatch.setattr(defaults.settings, "profile_json", '{"name": "Jane Doe", "skills": ["Python", "SQL"], "target_roles": ["Data Engineer"]}')
+    p = defaults.starting_profile()
+    assert p["name"] == "Jane Doe" and p["skills"] == [{"name": "Python", "years": None}, {"name": "SQL", "years": None}]
+    assert p["education"] == DEFAULT_PROFILE["education"]                    # missing keys fall back
+    monkeypatch.setattr(defaults.settings, "profile_json", '{"nmae": "typo"}')
+    with pytest.raises(ValueError, match="unknown keys: nmae"):
+        defaults.starting_profile()
+
+
+def test_serverless_steps_and_cron(client, monkeypatch):
+    from app.config import settings
+
+    client.patch("/api/settings", json={"sources": ["demo"], "search_queries": ["*", "Python"]})
+    first = client.post("/api/jobs/search-step", json={"cursor": 0, "seconds": 0.001}).json()   # tiny budget: 1 search
+    assert first["cursor"] == 1 and first["total"] == 2 and not first["done"] and first["new"] == 6
+    rest = client.post("/api/jobs/search-step", json={"cursor": first["cursor"]}).json()
+    assert rest["done"] and rest["duplicates"] >= 1                                              # resumes, no double saves
+
+    monkeypatch.setattr(settings, "run_mode", "serverless")
+    assert client.get("/api/info").json()["mode"] == "serverless"
+    run = client.post("/api/automation/start", json={}).json()
+    assert run["status"] == "RUNNING"                                                            # no thread started
+    run = client.post("/api/automation/step").json()
+    assert run["status"] == "FINISHED" and run["config"]["cursor"] == 2
+
+    assert client.get("/api/cron/daily").status_code == 503                                      # CRON_SECRET not set
+    monkeypatch.setattr(settings, "cron_secret", "s3cret")
+    assert client.get("/api/cron/daily", headers={"Authorization": "Bearer nope"}).status_code == 401
+    ok = client.get("/api/cron/daily", headers={"Authorization": "Bearer s3cret"}).json()
+    assert ok["stepped"] == []            # today's run already finished: no second run the same day

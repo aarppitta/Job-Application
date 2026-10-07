@@ -54,7 +54,7 @@ export default function Applications() {
         : b.submitted_at.localeCompare(a.submitted_at));
   }, [apps, q, filter, sort]);
 
-  const file = (app: Application, kind: string) => `Arpita_Chaudhari_${kind}_${app.job.company.replace(/\W+/g, "_")}.docx`;
+  const file = (app: Application, kind: string) => `${kind}_${app.job.company.replace(/\W+/g, "_")}.docx`;
   const files = (a: Application) => (
     <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
       <button className="inline-flex items-center gap-1 font-medium text-primary hover:underline" onClick={() => download(`/api/applications/${a.id}/cv.docx`, file(a, "CV"))}>

@@ -1,9 +1,13 @@
 """Start / pause / resume / stop the automation and read its live log."""
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import current_profile
+from app.config import settings
 from app.database import get_db
+from app.defaults import user_settings
 from app.models import AutomationLog, AutomationRun, Profile
 from app.serialize import to_dict
 from app.services import automation
@@ -75,3 +79,38 @@ def logs(after_id: int = 0, profile: Profile = Depends(current_profile), db: Ses
 @router.get("/runs")
 def runs(profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
     return [run_dict(r) for r in db.query(AutomationRun).filter_by(user_id=profile.user_id).order_by(AutomationRun.id.desc()).limit(20)]
+
+
+@router.post("/step")
+def step(profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
+    """Serverless mode: the Automation page calls this in a loop while the run is RUNNING (each call ≤ ~50 s)."""
+    run = latest_run(db, profile)
+    if run is None:
+        raise HTTPException(409, "No automation run.")
+    return run_dict(automation.step(db, run, min(50, settings.step_seconds)))
+
+
+# ------------------------------------------------------------------ Vercel Cron (serverless daily run)
+
+cron_router = APIRouter(prefix="/api/cron", tags=["cron"])
+
+
+@cron_router.get("/daily")
+def daily(authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    """Called by Vercel Cron (several times each morning, see vercel.json). Starts today's run if needed, then works one step."""
+    if not settings.cron_secret:
+        raise HTTPException(503, "CRON_SECRET is not set.")
+    if authorization != f"Bearer {settings.cron_secret}":
+        raise HTTPException(401, "Wrong cron secret.")
+    done = []
+    for profile in db.query(Profile).all():
+        cfg = user_settings(profile)
+        run = latest_run(db, profile)
+        today = datetime.now(UTC).date()
+        if (run is None or run.status not in ("RUNNING", "PAUSED")) and cfg.get("daily_auto_start") \
+                and (run is None or run.started_at.astimezone(UTC).date() < today):
+            run = automation.start(db, profile, {})
+        if run is not None and run.status == "RUNNING":
+            run = automation.step(db, run, settings.step_seconds)
+            done.append({"user_id": profile.user_id, "run": run.id, "status": run.status, "cursor": run.config.get("cursor")})
+    return {"stepped": done}

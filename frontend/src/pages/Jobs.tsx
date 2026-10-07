@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { api } from "../api";
 import {
-  Button, Card, Chip, CompanyAvatar, Empty, ErrorText, Field, MatchLabel, Notice, PageTitle, Score, SkeletonCard, StatusBadge,
+  Button, Card, Chip, CompanyAvatar, Empty, ErrorText, Field, MatchLabel, Notice, PageTitle, ProgressBar, Score, SkeletonCard, StatusBadge,
   Table, Tag, Visa, formatDate, inputClass,
 } from "../components/ui";
 import type { Job } from "../types";
@@ -30,6 +30,7 @@ export default function Jobs() {
   const [showFilters, setShowFilters] = useState(false);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const { data: settings } = useFetch("/api/settings");
   const threshold = settings?.min_score ?? 80;
 
@@ -52,17 +53,27 @@ export default function Jobs() {
   const toggleKeyword = (k: string) => setKeywords(keywords.includes(k) ? keywords.filter((x) => x !== k) : [...keywords, k]);
   const activeFilters = Number(onlyMatches) + Object.values(flags).filter(Boolean).length + keywords.length;
 
+  // Searches in steps (≤ 50 s each) so it works on Vercel too; each step continues where the last one stopped.
   async function searchNow() {
     setSearching(true);
-    setMessage("Searching all sources… this can take a few minutes.");
+    const total = { found: 0, new: 0, duplicates: 0, errors: [] as string[] };
+    let step = { cursor: 0, blocked: [] as string[], done: false, total: 1 };
     try {
-      const r = await api("/api/jobs/search", { body: {} });
-      setMessage(`Found ${r.found} · new ${r.new} · already known ${r.duplicates}${r.errors.length ? " · " + r.errors.join(", ") : ""}`);
+      while (!step.done) {
+        setProgress(Math.round((100 * step.cursor) / step.total));
+        setMessage(`Searching all sources… ${step.cursor}/${step.total === 1 ? "?" : step.total} searches · ${total.new} new jobs so far`);
+        const r = await api("/api/jobs/search-step", { body: { cursor: step.cursor, blocked: step.blocked } });
+        total.found += r.found; total.new += r.new; total.duplicates += r.duplicates; total.errors.push(...r.errors);
+        step = r;
+        if (r.new) reload();
+      }
+      setMessage(`Found ${total.found} · new ${total.new} · already known ${total.duplicates}${total.errors.length ? " · " + [...new Set(total.errors)].join(", ") : ""}`);
       reload();
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
       setSearching(false);
+      setProgress(null);
     }
   }
 
@@ -83,7 +94,7 @@ export default function Jobs() {
           </>
         }
       />
-      {message && <Notice icon={Info}>{message}</Notice>}
+      {message && <Notice icon={Info}>{message}{progress !== null && <div className="mt-2"><ProgressBar value={progress} label="Search progress" /></div>}</Notice>}
       {showImport && <ImportForm onClose={() => setShowImport(false)} />}
 
       {/* Tabs (segmented control) */}

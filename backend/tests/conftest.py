@@ -6,6 +6,7 @@ os.environ["AI_API_KEY"] = ""  # always use the offline templates in tests
 os.environ["MASTER_USERNAME"] = "arpita"
 os.environ["DAILY_SCHEDULER"] = "false"  # no automatic runs during tests
 os.environ["MASTER_PASSWORD"] = "test-password"
+os.environ["RUN_MODE"] = "server"  # tests decide the mode explicitly
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
