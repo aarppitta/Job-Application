@@ -36,8 +36,10 @@ morning, 03:00–08:00 UTC = 08:30–13:30 IST; change the times in `vercel.json
    ```bash
    pg_dump --no-owner --no-acl germany_jobs | psql "postgresql://…direct-host…/neondb?sslmode=require"
    ```
-3. **Vercel**: *Add New → Project*, import the repository and set **Root Directory** to `germany-job-automation`
-   (or run `npx vercel` inside this folder). `vercel.json` already configures the build, the API and the crons.
+3. **Vercel**: *Add New → Project*, import the repository. **Root Directory**: the folder that contains `vercel.json`
+   (`./` for the aarppitta/Job-Application repo). Leave Framework / Build settings as they are: `vercel.json` sets them
+   (Vite frontend + Python API in `api/index.py`). If a build says "No FastAPI entrypoint found", it built a commit
+   without `vercel.json`: redeploy the latest commit.
 4. **Environment variables** (Project → Settings → Environment Variables):
    | Name | Value |
    |---|---|

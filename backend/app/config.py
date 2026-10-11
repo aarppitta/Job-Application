@@ -65,7 +65,8 @@ class Settings(BaseSettings):
         """A public deployment must not run with the default password or token secret."""
         if not self.serverless:
             return
-        problems = [name for name, bad in (("SECRET_KEY", self.secret_key == DEFAULT_SECRET or len(self.secret_key) < 32),
+        problems = [name for name, bad in (("DATABASE_URL", "@localhost" in self.database_url or "//localhost" in self.database_url),
+                                           ("SECRET_KEY", self.secret_key == DEFAULT_SECRET or len(self.secret_key) < 32),
                                            ("MASTER_PASSWORD", self.master_password == DEFAULT_PASSWORD or len(self.master_password) < 10))
                     if bad]
         if problems:
