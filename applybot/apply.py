@@ -99,15 +99,17 @@ def facts(profile: dict, answers: dict, job: dict, letter: str) -> dict:
         "location": location, "city": location.split(",")[0].strip(), "country": location.split(",")[-1].strip(),
         "current_company": exp.get("company", ""), "current_title": exp.get("role", ""),
         "years": str(profile.get("years_experience") or ""), "worked_here": "Yes" if worked_here else "No",
-        "letter": letter, "decline": "Prefer not to say",
+        "letter": letter, "decline": "Prefer not to say", "consent_yes": "Yes",
     }
 
 
 MARKETING = r"newsletter|marketing|career related information|future (opportunit|position|vacanc|role)|talent (pool|community)|job alert|retain my data|keep me|updates|zukünftig|talentpool|demographic|diversity|survey"
-CONSENT = r"privacy|datenschutz|terms|agree|consent|einverstanden|zustimm|einwillig|acknowledge|confirm that|i have read|gelesen"
+CONSENT = r"privacy|datenschutz|terms|agree|consent|einverstanden|zustimm|einwillig|acknowledge|confirm that|i have read|gelesen|declare|true,? correct|true and correct|wahr und richtig"
 DEMOGRAPHIC = r"ethnic|race|disabil|veteran|sexual orientation|demographic|diversity|gender identity|hispanic|behinderung"
 # (pattern on the question text, fact key); first match wins. The order matters ("first name" before "name").
 RULES = [
+    (MARKETING, "decline"),
+    (CONSENT, "consent_yes"),
     (r"phone country|country code|vorwahl", "country"),
     (r"first name|given name|vorname|^first\b", "first"),
     (r"last name|family name|surname|nachname|^last\b", "last"),
@@ -130,7 +132,8 @@ RULES = [
     (r"hear about|how did you (find|learn)|where did you (find|see|hear)|aufmerksam|^source\b", "how_did_you_hear"),
     (r"current (company|employer)|arbeitgeber|\borg\b", "current_company"),
     (r"current (title|role|position)", "current_title"),
-    (r"years of (professional )?experience|berufserfahrung", "years"),
+    (r"years of (professional )?(working )?experience|berufserfahrung", "years"),
+    (r"(current )?(place of )?residence|wohnsitz", "location"),
     (r"cover letter|motivation|why (do|are|would) you|anschreiben|additional information|zusatzinformation|anything else|message|tell us about yourself|nachricht", "letter"),
     (r"\bfull name\b|^name\b|your name|vollständiger name", "full_name"),
     (r"country|land\b", "country"),
@@ -151,6 +154,8 @@ def answer_for(q: str, kind: str, f: dict) -> str | None:
                 return f["earliest_start_iso"] if kind == "date" else f["earliest_start"]
             if key == "location" and kind == "combobox":
                 return f["city"]
+            if key == "location" and kind in ("select", "radio"):
+                return f["country"]
             if key == "letter" and kind not in ("text", "textarea"):
                 return None
             return f.get(key) or None
@@ -362,12 +367,12 @@ def fill_form(page, f: dict, cv: Path, letter_file: Path) -> tuple[list, list]:
                         missing.append(f"{text[:120]} (marketing/data box: never ticked)")
                     continue
                 if re.search(CONSENT, fld["label"] or q, re.I):
-                    loc.check(force=True)
+                    check_box(loc)
                     filled.append((fld["label"][:80] or q[:80], "checked"))
                     continue
                 answer = answer_for(fld["label"] or q, kind, f)
                 if answer and answer.lower() in ("yes", "ja"):
-                    loc.check(force=True)
+                    check_box(loc)
                     filled.append((text[:80], "Yes"))
                 elif not answer and fld["required"]:
                     missing.append(text[:120])
@@ -405,6 +410,15 @@ def fill_form(page, f: dict, cv: Path, letter_file: Path) -> tuple[list, list]:
                 missing.append(f"{q} (could not fill: {str(e).splitlines()[0][:80]})")
     answered = [fq for fq, _ in filled if fq]
     return filled, [m for m in missing if not any(m.startswith(fq) for fq in answered)]  # a field shown twice counts once
+
+
+def check_box(loc) -> None:
+    """Check a checkbox; falls back to a plain click for custom-styled (non-native) checkbox widgets."""
+    try:
+        loc.check(force=True, timeout=3000)
+    except PlaywrightError:
+        if not loc.is_checked():
+            loc.click(force=True)
 
 
 def choose_combobox(page, loc, answer: str) -> bool:

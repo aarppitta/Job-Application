@@ -54,15 +54,13 @@ Pharma Processing Machine — Configuration Tool (Python · config.ini · Indust
 
 Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIEW · Industrial SCADA Software)
 - Angular-based SCADA application providing real-time operator screens for compression machines — machine status, process values, operator controls and parameter configuration.
-- Defined the data interface contract between the Angular frontend and the LabVIEW backend layer, ensuring reliable state synchronisation and clean separation of concerns.
+- Defined the data interface contract between the Angular frontend and the LabVIEW backend layer — direct LabVIEW connectivity for faster real-time data exchange, with reliable state synchronisation and clean separation of concerns.
 - Leading a junior developer on this project — component architecture, code review, integration testing approach and delivery planning.
 
-Job Application — Job Discovery & Application Tracking Platform (Python · FastAPI · SQLAlchemy · PostgreSQL · React · TypeScript · Tailwind CSS · Playwright · Vercel · Neon)
-- Built a full-stack platform that collects jobs in Germany from the official job APIs of 75+ company career sites (Greenhouse, Lever, SmartRecruiters, Personio, Ashby, Workday) and public job feeds, with rate limiting and source-health monitoring.
-- Implemented job normalisation, duplicate detection, version history for every job description, and freshness checks that hide closed postings.
-- Developed rule-based CV-to-job matching (0–100 score from 8 weighted criteria) with requirement-level skill-gap analysis and language / visa checks.
-- Built an application tracker (table, Kanban board, calendar) and a Word/PDF CV generator in German/EU format.
-- Automated form filling on company application pages with Playwright, using only verified profile facts and stopping at CAPTCHAs or unknown questions; deployed on Vercel with Neon PostgreSQL; 48 automated tests.
+Job Application — Job Search & Application Tracker (Python · FastAPI · PostgreSQL · React · TypeScript · Playwright)
+- Web app that collects software jobs in Germany from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.
+- Scores each job against the CV, shows missing skills, and tracks applications, interviews and follow-ups.
+- Creates a German/EU-format CV and cover letters, and fills company application forms automatically (Playwright).
 
 EDUCATION
 MSc Computer Science — Greenwich University, London, United Kingdom | January 2022 – January 2023
