@@ -38,7 +38,7 @@ const MENU: Item[] = [
   { to: "/applications", label: "Applications", icon: Send, tone: "emerald" },
   { to: "/cv", label: "My CV", icon: FileUser, tone: "rose" },
   { to: "/recruiters", label: "Recruiters", icon: Users, tone: "pink" },
-  { to: "/agencies", label: "Recruitment companies", icon: Building2, tone: "yellow" },
+  { to: "/recruiter-jobs", label: "Recruiter jobs", icon: Building2, tone: "yellow" },
   { to: "/automation", label: "Automation", icon: Bot, tone: "orange", ai: true },
   { to: "/settings", label: "Settings", icon: Settings, tone: "slate" },
 ];

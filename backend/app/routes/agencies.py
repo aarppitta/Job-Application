@@ -16,6 +16,9 @@ from app.logic.scoring import match_label
 from app.models import Application, Job, Profile, RecruitmentCompany
 from app.serialize import to_dict
 from app.services import agencies
+from app.sources import RECRUITER_SITES
+
+READ_SITES = {name for name, _, _ in RECRUITER_SITES.values()}  # recruiters whose own job pages are read
 
 router = APIRouter(prefix="/api/agencies", tags=["recruitment companies"])
 VERIFIED_FIELDS = ("international_recruitment_supported", "india_candidate_support_verified",
@@ -33,7 +36,7 @@ def agency_dict(a: RecruitmentCompany, jobs: int = 0, good: int = 0, applied: in
     data = to_dict(a, skip=("user_id", "aliases"))
     data["category_label"] = CATEGORIES.get(a.recruitment_category, a.recruitment_category)
     data["jobs"], data["good_matches"], data["applied"] = jobs, good, applied
-    data["ingestion"] = "automatic" if a.job_feed else "manual"
+    data["ingestion"] = "automatic" if a.job_feed or a.name in READ_SITES else "manual"
     return data
 
 

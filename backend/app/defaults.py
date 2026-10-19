@@ -135,7 +135,7 @@ DEFAULT_SETTINGS = {
     "repeat_every_minutes": 30,       # the automation searches again after this pause
     "daily_auto_start": True,         # start the automation by itself every day...
     "daily_start_time": "08:00",      # ...at this time (computer's local time), as long as the backend is running
-    "sources": ["greenhouse", "lever", "smartrecruiters", "personio", "ashby", "workday", "amazon", "arbeitnow",
+    "sources": ["greenhouse", "lever", "smartrecruiters", "personio", "ashby", "workday", "amazon", "recruiters", "arbeitnow",
                 "berlinstartupjobs", "munichstartup", "startupcityhamburg"],
     # Job roles to search for. JOB_KEYWORDS in .env replaces this list on another computer.
     "search_queries": [k.strip() for k in settings.job_keywords.split(",") if k.strip()] or [
@@ -164,6 +164,8 @@ DEFAULT_SETTINGS = {
                            "node-energy", "stark", "1komma5grad", "tonies",
                            # industrial automation / energy software (checked 2026-10-19)
                            "softing", "meteocontrol", "wattfox", "twaice", "gridx", "entrix", "lumenaza"],  # <company>.jobs.personio.de
+    # Recruitment agencies whose own job pages are read (sources.RECRUITER_SITES); found jobs show on "Recruiter jobs"
+    "recruiter_sites": ["randstad", "brunel", "vesterling", "jac", "dekra", "persona", "tempton", "orizon", "hofmann"],
     "saved_searches": [],             # Jobs page: [{"name": "Munich industrial", "filters": {...}}]
     "goal_date": "2027-01-31",        # Germany job by January 2027 (Strategy page counts down to this)
     "study_hours_per_week": 15,       # time you can spend learning; the weekly plan splits it

@@ -54,7 +54,8 @@ def list_jobs(
     q: str = "", min_score: float | None = None, visa: bool = False, remote: bool = False, hybrid: bool = False,
     germany_only: bool = False, english_only: bool = False, days: int | None = None, keyword: list[str] = Query([]),
     view: str = "week", sort: str = "score", page: int = 1, show_scams: bool = False, show_closed: bool = False,
-    saved: bool = False, agency: str = "", profile: Profile = Depends(current_profile), db: Session = Depends(get_db),
+    saved: bool = False, agency: str = "", from_recruiters: bool = False,
+    profile: Profile = Depends(current_profile), db: Session = Depends(get_db),
 ):
     """view: today = posted today · week = posted in the last 7 days · older = posted more than 7 days ago · all
     Closed jobs (page gone / position filled) are hidden unless show_closed; saved = only your bookmarks."""
@@ -69,6 +70,8 @@ def list_jobs(
         query = query.filter(Job.is_saved.is_(True))
     if agency:
         query = query.filter(Job.agency == agency)
+    if from_recruiters:
+        query = query.filter(Job.agency.isnot(None))
     posted = func.coalesce(Job.posted_at, Job.discovered_at)  # posting date; if the site gives none, the day we found it
     week_ago = start_of_today() - timedelta(days=6)
     if view == "today":
@@ -185,12 +188,14 @@ class SearchStep(BaseModel):
     cursor: int = 0
     blocked: list[str] = []
     seconds: float = 50
+    only: list[str] = []   # e.g. ["recruiters"]: search just these sources (Recruiter jobs page)
 
 
 @router.post("/search-step")
 def search_step(body: SearchStep, profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
     """One part of "Search now" (≤ `seconds`). The page calls it again with the returned cursor until done."""
-    return job_service.search_step(db, profile, body.cursor, min(body.seconds, app_config.step_seconds), list(body.blocked))
+    return job_service.search_step(db, profile, body.cursor, min(body.seconds, app_config.step_seconds), list(body.blocked),
+                                   only=body.only or None)
 
 
 @router.post("/rescore-all")

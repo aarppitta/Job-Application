@@ -19,7 +19,8 @@ from app.defaults import DEFAULT_PROFILE, DEFAULT_SETTINGS  # noqa: E402
 ANSWERS = Path.home() / ".job-automation" / "answers.json"  # private: your email + phone are kept here, not in the code
 REMOVED_SKILLS = {"Zenon"}  # taken off the CV by you (2026-10-19): also dropped from the saved skill list
 ADDED_SKILLS = ["PostgreSQL"]  # from the Job Application project (added to the CV 2026-10-19)
-COMPANY_LISTS = ("greenhouse_boards", "lever_companies", "smartrecruiters_companies", "personio_companies", "ashby_boards", "workday_sites")
+COMPANY_LISTS = ("greenhouse_boards", "lever_companies", "smartrecruiters_companies", "personio_companies", "ashby_boards", "workday_sites",
+                 "recruiter_sites")
 
 
 def main():
@@ -38,7 +39,7 @@ def main():
         sys.exit("This app ignored the CV fields: deploy the new version first (it accepts experience/projects).")
     current = api.get("/api/settings")
     body = {"search_queries": DEFAULT_SETTINGS["search_queries"],
-            "sources": list(dict.fromkeys(current["sources"] + ["workday", "amazon"]))}
+            "sources": list(dict.fromkeys(current["sources"] + ["workday", "amazon", "recruiters"]))}
     body.update({k: list(dict.fromkeys(current.get(k, []) + DEFAULT_SETTINGS[k])) for k in COMPANY_LISTS})
     settings = api.call("PATCH", "/api/settings", json=body).json()
     print(f"OK: email {profile['email']}, {len(profile['education'])} degrees, {len(settings['search_queries'])} job roles, "

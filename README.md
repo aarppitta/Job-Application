@@ -4,7 +4,7 @@ Finds software and industrial jobs in Germany by your keywords (official job API
 Workday and Amazon, plus public job feeds), saves every job description, scores each job against your CV, and gives you
 **one standard CV** (German/EU format) and a **cover letter** for any job. You apply on the company site, click
 **Mark as applied**, and the app keeps what you sent and tracks the status (table, board and calendar).
-A **Recruitment companies** directory (50 recruiters) tracks your contact with each recruiter and the jobs they advertise.
+**Recruiter jobs** lists the roles that recruitment agencies advertise (read from their own job pages), ready to apply.
 
 
 ## Run
@@ -25,9 +25,10 @@ Don't use plain `uvicorn …`; it may use the system Python and crash with `No m
 3. **Jobs**: open a job, then use **Standard CV** and **Cover letter**. Save jobs and filter sets; add deadlines.
 4. Apply on the company site (**Open job to apply**), then click **Mark as applied**.
 5. **Applications**: status (Interview, Offer, Rejected…), interview dates, board and calendar views, the CV and letter you sent.
-6. **Recruitment companies**: search and filter 50 recruiters, open their sites, keep your status / notes / follow-ups, and
-   mark India / visa / relocation support as confirmed only with a source link. Jobs they advertise are linked to them;
-   applying to one sets that recruiter to "Applied".
+6. **Recruiter jobs**: roles from recruitment agencies (Randstad, Brunel, Vesterling, JAC, DEKRA Arbeit, persona service,
+   TEMPTON, Orizon, I.K. Hofmann, ALTEN, CareerTeam), scored against your CV. **Search recruiters now** refreshes them;
+   **Apply** opens the recruiter's page, **Mark as applied** saves the application. Only job pages the recruiters allow
+   (robots.txt) are read, one per second; recruiters that can't be read are listed as links.
 
 Jobs found elsewhere (LinkedIn, Indeed…): **Jobs → Import job** and paste the description.
 

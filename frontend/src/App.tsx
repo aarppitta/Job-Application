@@ -3,7 +3,6 @@ import { Route, Routes } from "react-router-dom";
 
 import { getToken } from "./api";
 import Layout from "./components/Layout";
-import Agencies from "./pages/Agencies";
 import Applications from "./pages/Applications";
 import Automation from "./pages/Automation";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +12,7 @@ import JobDetail from "./pages/JobDetail";
 import Jobs from "./pages/Jobs";
 import Login from "./pages/Login";
 import MyCv from "./pages/MyCv";
+import RecruiterJobs from "./pages/RecruiterJobs";
 import Recruiters from "./pages/Recruiters";
 import Settings from "./pages/Settings";
 import Sources from "./pages/Sources";
@@ -33,7 +33,8 @@ export default function App() {
         <Route path="/applications" element={<Applications />} />
         <Route path="/cv" element={<MyCv />} />
         <Route path="/recruiters" element={<Recruiters />} />
-        <Route path="/agencies" element={<Agencies />} />
+        <Route path="/recruiter-jobs" element={<RecruiterJobs />} />
+        <Route path="/agencies" element={<RecruiterJobs />} />
         <Route path="/automation" element={<Automation />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Dashboard />} />

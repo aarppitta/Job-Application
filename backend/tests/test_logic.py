@@ -190,3 +190,31 @@ def test_deadline_and_closed_page_detection():
     assert find_deadline("We review applications continuously.") is None
     assert GONE.search("Sorry, this job is no longer available.") and GONE.search("Die Stelle ist bereits besetzt")
     assert not GONE.search("The position will be filled as soon as possible. Apply now!")
+
+
+def test_recruiter_job_pages(monkeypatch):
+    """Recruiter source: sitemap → only role-matching job URLs → JobPosting → Germany only, duplicates once."""
+    from app import sources
+
+    class R:
+        def __init__(self, text): self.text, self.content = text, text.encode()
+    posting = lambda title, country: R('<script type="application/ld+json">' + __import__("json").dumps({
+        "@type": "JobPosting", "title": title, "description": "Python FastAPI developer for SCADA. " * 10,
+        "hiringOrganization": {"name": "Orizon GmbH"}, "datePosted": "2026-10-01",
+        "jobLocation": {"address": {"addressLocality": "Munich", "addressCountry": country}}}) + "</script>")
+    pages = {
+        "https://www.orizon.de/robots.txt": R("User-agent: *\nDisallow: /intern/\nSitemap: https://www.orizon.de/sitemap.xml"),
+        "https://www.orizon.de/sitemap.xml": R("<urlset><loc>https://www.orizon.de/de/job/python-developer-munich-t1</loc>"
+                                                "<loc>https://www.orizon.de/de/job/staplerfahrer-essen-t2</loc>"
+                                                "<loc>https://www.orizon.de/de/job/python-developer-zurich-t3</loc>"
+                                                "<loc>https://www.orizon.de/en/job/python-developer-munich-t4</loc></urlset>"),
+        "https://www.orizon.de/de/job/python-developer-munich-t1": posting("Python Developer (m/w/d)", "DE"),
+        "https://www.orizon.de/de/job/python-developer-zurich-t3": posting("Python Developer (m/w/d)", "CH"),
+        "https://www.orizon.de/en/job/python-developer-munich-t4": posting("Python Developer (m/w/d)", "DE"),
+    }
+    opened = []
+    monkeypatch.setattr(sources, "get_cached", lambda source, url, *a, **k: opened.append(url) or pages.get(url))
+    sources._robots.clear()
+    [job] = sources.recruiters("Python Developer", ["orizon"])
+    assert job["agency"] == "Orizon" and job["company"] == "Orizon GmbH" and job["location"] == "Munich, Germany"
+    assert "https://www.orizon.de/de/job/staplerfahrer-essen-t2" not in opened          # title doesn't match: never opened

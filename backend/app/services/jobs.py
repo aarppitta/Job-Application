@@ -52,10 +52,12 @@ def save_job(db: Session, user_id: int, raw: dict) -> tuple[Job, str, str]:
                "url": raw.get("source_url"), "application_url": raw.get("application_url"), "location": raw.get("location")}
     existing, reason = find_duplicate(db, user_id, compare, key)
 
-    agency = agencies.match_agency(db, user_id, raw["company"])  # posted by a recruitment company?
+    # posted by a recruitment company? (the recruiter sources say so; otherwise: is the company itself a recruiter?)
+    matched = agencies.match_agency(db, user_id, raw["company"])
+    agency_name = raw.get("agency") or (matched.name if matched else None)
     if existing:
         existing.last_seen_at, existing.closed_at = now(), None  # listed again by a source = still open
-        existing.agency = existing.agency or (agency.name if agency else None)
+        existing.agency = existing.agency or agency_name
         link = db.query(JobSource).filter_by(job_id=existing.id, source=raw["source"], url=raw.get("source_url")).first()
         if link:
             link.last_seen = now()
@@ -85,7 +87,7 @@ def save_job(db: Session, user_id: int, raw: dict) -> tuple[Job, str, str]:
         location=raw.get("location"), source=raw["source"], source_url=raw.get("source_url"),
         application_url=raw.get("application_url") or raw.get("source_url"), company_url=raw.get("company_url"),
         posted_at=raw.get("posted_at"), original_description=info["text"], last_seen_at=now(),
-        agency=agency.name if agency else None,
+        agency=agency_name,
     )
     apply_parsed_info(job, info)
     db.add(job)
@@ -164,17 +166,17 @@ def search_now(db: Session, profile: Profile, source_names: list[str], queries: 
 # ------------------------------------------------------------------ step-by-step search (serverless, resumable)
 
 
-def search_pairs(s: dict) -> list[tuple[str, str]]:
+def search_pairs(s: dict, only: list[str] | None = None) -> list[tuple[str, str]]:
     """Every (source, role) to search, source by source so a company list is downloaded once and then cached."""
-    return [(src, q) for src in s["sources"] if src in SOURCES for q in s["search_queries"]]
+    return [(src, q) for src in s["sources"] if src in SOURCES and (not only or src in only) for q in s["search_queries"]]
 
 
 def search_step(db: Session, profile: Profile, cursor: int, seconds: float, blocked: list[str] | None = None,
-                on_job=None, on_log=None) -> dict:
+                on_job=None, on_log=None, only: list[str] | None = None) -> dict:
     """Search from `cursor` until `seconds` are used up. Call again with the returned cursor to continue.
     Works the same locally and on Vercel (where one call may run at most a few minutes)."""
     blocked = blocked if blocked is not None else []
-    pairs = search_pairs(user_settings(profile))
+    pairs = search_pairs(user_settings(profile), only)
     started = time.monotonic()
     out = {"found": 0, "new": 0, "duplicates": 0, "errors": []}
     while cursor < len(pairs) and time.monotonic() - started < seconds:

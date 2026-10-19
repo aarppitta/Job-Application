@@ -10,6 +10,7 @@ Rules:
 - LinkedIn / Indeed / StepStone / XING / Glassdoor / Wellfound... are NOT scraped. They get search links
   (Job boards page) and you paste interesting jobs with "Import job".
 """
+import gzip
 import html
 import json
 import re
@@ -17,10 +18,12 @@ import time
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlparse
+from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from app.logic.jd_parser import detect_country, simplify
+from app.logic.jd_parser import detect_country, html_to_text, simplify
 
 USER_AGENT = "JobApplication/1.0 (personal job search)"
 
@@ -434,6 +437,127 @@ def munichstartup(query: str, _companies: list[str], pages: int = 3) -> list[dic
     return jobs
 
 
+# ------------------------------------------------------------------ Recruitment agencies' own job pages
+# Checked 2026-10-19: these recruiters list their job pages in the sitemap named in robots.txt, robots.txt allows them,
+# and each job page carries a schema.org JobPosting block (title, employer, location, date, full text). We read the
+# sitemaps (cached), open only jobs whose URL words match your role (max PER_QUERY per site and role, 1 request/s),
+# keep jobs in Germany, and never read pages robots.txt disallows. Hays / Amadeus Fire / Huxley / Computer Futures
+# have no job data in their pages (built in the browser) and stay manual (links on the Recruiter jobs page).
+RECRUITER_SITES = {
+    "randstad": ("Randstad Germany", "https://www.randstad.de", r"/jobs/[^/]+_c\d+/?$"),
+    "brunel": ("Brunel", "https://www.brunel.net", r"/jobs/[^/]+-pr-\d+/?$"),
+    "vesterling": ("Vesterling", "https://www.vesterling.com", r"/job/\d+-[^/]+/?$"),
+    "jac": ("JAC Recruitment Germany", "https://www.jac-recruitment.de", r"/job/[^/]+-\d+/?$"),
+    "dekra": ("DEKRA Arbeit", "https://www.dekra-arbeit.de", r"/stellenmarkt/[^/]+-job-in-[^/]+/[0-9a-f-]{20,}/?$"),
+    "persona": ("persona service", "https://www.persona.de", r"/jobs/[^/]+/[0-9a-f-]{36}/?$"),
+    "tempton": ("TEMPTON", "https://www.tempton.de", r"/jobs/[a-z0-9-]+-[a-z0-9-]+/?$"),
+    "orizon": ("Orizon", "https://www.orizon.de", r"/job/[^/]+-t\d+/?$"),
+    "hofmann": ("I.K. Hofmann", "https://www.hofmann.info", r"/jobs/stellenanzeige/[^/]+/?$"),
+}
+PER_QUERY = 8                       # job pages opened per site and role (the sitemaps list thousands of jobs)
+_robots: dict[str, RobotFileParser] = {}
+
+
+def _allowed(base: str, url: str) -> bool:
+    if base not in _robots:
+        rp = RobotFileParser()
+        r = get_cached("recruiters", f"{base}/robots.txt")
+        rp.parse((r.text if r else "").splitlines())
+        _robots[base] = rp
+    return _robots[base].can_fetch(USER_AGENT, url)
+
+
+def _sitemap_job_urls(base: str, pattern: str) -> list[str]:
+    """Job-page URLs from the sitemaps named in robots.txt (sitemap indexes followed, job sitemaps first)."""
+    robots = get_cached("recruiters", f"{base}/robots.txt")
+    queue = re.findall(r"(?im)^sitemap:\s*(\S+)", robots.text if robots else "") or [f"{base}/sitemap.xml"]
+    urls, seen, job = [], set(), re.compile(pattern)
+    while queue and len(seen) < 30:
+        sitemap = queue.pop(0)
+        if sitemap in seen or not _allowed(base, sitemap):
+            continue
+        seen.add(sitemap)
+        r = get_cached("recruiters", sitemap)
+        body = r.content if r else b""
+        if sitemap.endswith(".gz"):
+            try:
+                body = gzip.decompress(body)
+            except OSError:
+                pass
+        text = body.decode("utf-8", "ignore")
+        locs = re.findall(r"<loc>\s*(.*?)\s*</loc>", text)
+        if "<sitemapindex" in text:
+            queue = sorted(locs, key=lambda u: 0 if re.search(r"job|stell|vacanc", u, re.I) else 1) + queue
+        else:
+            urls += [html.unescape(u) for u in locs if job.search(urlparse(u).path)]
+    return list(dict.fromkeys(urls))
+
+
+def _job_posting_any(page: str) -> dict:
+    """schema.org JobPosting from JSON-LD (also inside @graph or with @type as a list)."""
+    for block in re.findall(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', page, re.S):
+        try:
+            data = json.loads(block)
+        except ValueError:
+            continue
+        items = data if isinstance(data, list) else data.get("@graph", [data]) if isinstance(data, dict) else []
+        for item in items:
+            kind = item.get("@type") if isinstance(item, dict) else None
+            if kind == "JobPosting" or (isinstance(kind, list) and "JobPosting" in kind):
+                return item
+    return {}
+
+
+def _place(posting: dict) -> tuple[str, str]:
+    """(city, country) from jobLocation.address (lists and plain strings allowed)."""
+    loc = posting.get("jobLocation")
+    loc = loc[0] if isinstance(loc, list) and loc else loc
+    address = loc.get("address", {}) if isinstance(loc, dict) else {}
+    address = address[0] if isinstance(address, list) and address else address
+    if not isinstance(address, dict):
+        return "", ""
+    country = address.get("addressCountry")
+    country = country.get("name", "") if isinstance(country, dict) else (country or "")
+    return address.get("addressLocality") or "", country
+
+
+def recruiters(query: str, sites: list[str]) -> list[dict]:
+    jobs = []
+    for key in sites:
+        if key not in RECRUITER_SITES:
+            continue
+        agency, base, pattern = RECRUITER_SITES[key]
+        seen = set()  # the same job in two languages (Vesterling /job and /en/job) counts once
+        try:
+            candidates = [u for u in _sitemap_job_urls(base, pattern)
+                          if query == "*" or matches(query, " ".join(urlparse(u).path.split("/")[-2:]).replace("-", " "), "")]
+            for url in candidates[:PER_QUERY]:
+                if not _allowed(base, url):
+                    continue
+                page = get_cached("recruiters", url)
+                posting = _job_posting_any(page.text) if page else {}
+                city, country = _place(posting)
+                title = html.unescape(posting.get("title") or "").strip()
+                description = posting.get("description") or ""
+                expires = parse_date(posting.get("validThrough"))
+                if not title or country.strip().lower() not in ("de", "deu", "germany", "deutschland") \
+                        or (expires and expires < datetime.now(UTC)) or not matches(query, title, html_to_text(description)):
+                    continue
+                if (title, city) in seen:
+                    continue
+                seen.add((title, city))
+                org = posting.get("hiringOrganization")
+                employer = (org.get("name") if isinstance(org, dict) else org) or agency
+                jobs.append({
+                    "source": "recruiters", "agency": agency, "title": title, "company": " ".join(str(employer).split()),
+                    "description": description, "location": f"{city}, Germany" if city else "Germany",
+                    "source_url": url, "application_url": posting.get("url") or url, "posted_at": parse_date(posting.get("datePosted")),
+                })
+        except SourceBlocked:
+            continue  # this recruiter blocks automatic reading right now: skip it, never get around it
+    return jobs
+
+
 # ------------------------------------------------------------------ Demo (fictional, for trying the app)
 
 DEMO_JOBS = [
@@ -478,6 +602,7 @@ SOURCES = {
     "ashby": (ashby, "ashby_boards"),
     "workday": (workday, "workday_sites"),
     "amazon": (amazon, None),
+    "recruiters": (recruiters, "recruiter_sites"),
     "arbeitnow": (arbeitnow, None),
     "berlinstartupjobs": (berlinstartupjobs, None),
     "munichstartup": (munichstartup, None),

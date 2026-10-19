@@ -28,7 +28,7 @@ function Freshness({ job, onChange }: { job: JobDetails; onChange: () => void })
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
       <span>Source: {job.source}{job.last_seen_at && ` · listed ${formatDate(job.last_seen_at)}`}</span>
-      {job.agency && <Link to="/agencies" className="font-medium text-amber-700 hover:underline">Advertised by recruiter {job.agency}</Link>}
+      {job.agency && <Link to="/recruiter-jobs" className="font-medium text-amber-700 hover:underline">Advertised by recruiter {job.agency}</Link>}
       <span>{job.checked_at ? `Page checked ${formatDate(job.checked_at)}` : "Page not re-checked yet"}</span>
       {editing ? (
         <label className="inline-flex items-center gap-1.5">Deadline
