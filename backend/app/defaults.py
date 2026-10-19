@@ -1,6 +1,7 @@
 """Starting profile (copied from Arpita's CV, kept in data/standard_cv.txt) and default settings.
 
 Email, phone and visa need are not on the CV, so they are empty until you fill them in Settings.
+Every application uses this one standard CV (logic/cv.py); there are no per-job CV versions.
 """
 from app.config import settings
 
@@ -14,12 +15,18 @@ DEFAULT_PROFILE = {
     "years_experience": 2.5,
     "target_country": "Germany",
     "summary": (
-        "Industrial Software Engineer with hands-on expertise in IIoT systems, WebSCADA platforms and industrial "
+        "Industrial Software Engineer with hands-on expertise in IIoT systems, WebSCADA platforms, and industrial "
         "protocol communication. Builds custom Python-based OPC servers, 21 CFR Part 11-compliant WebSCADA "
-        "applications, OPC-UA tag management tools and Windows service-packaged deployments for pharmaceutical and "
-        "manufacturing environments. Proficient in Angular and FastAPI; experienced in leading junior engineers."
+        "applications, OPC-UA tag management tools, and Windows service-packaged deployments for pharmaceutical and "
+        "manufacturing environments. Proficient in Angular and FastAPI for full-stack industrial applications; "
+        "experienced in leading junior engineers and delivering production-grade systems end-to-end. "
+        "MSc Computer Science, University of Greenwich, London."
     ),
-    "education": ["MSc Computer Science, University of Greenwich, London"],
+    "education": [  # degree | school | dates (newest first; see logic/cv.education_parts)
+        "MSc Computer Science | Greenwich University, London, United Kingdom | January 2022 – January 2023",
+        "Masters in Computer Applications | Gujarat Technological University, Ahmedabad, India | December 2015 – January 2018",
+        "Bachelor of Computer Applications | Gujarat University, Ahmedabad, India | December 2012 – April 2015",
+    ],
     "experience": [
         {"company": "Kevision Systems", "location": "Ahmedabad, India", "role": "System Software Engineer — Industrial Automation", "dates": "April 2026 – Present",
          "bullets": [
@@ -51,9 +58,9 @@ DEFAULT_PROFILE = {
     "skills": [{"name": s, "years": None} for s in [
         # from the CV
         "Python", "FastAPI", "Django", "Angular", "TypeScript", "JavaScript", "Node.js", "Express.js", "MongoDB",
-        "MySQL", "REST APIs", "JWT", "RBAC", "AWS", "Agile", "Postman",
+        "MySQL", "PostgreSQL", "REST APIs", "JWT", "RBAC", "AWS", "Agile", "Postman",
         "SCADA", "WebSCADA", "OPC", "OPC UA", "Modbus", "FINS", "PLC", "IIoT", "21 CFR Part 11",
-        "PyInstaller", "Windows Services", "LabVIEW", "Zenon",
+        "PyInstaller", "Windows Services", "LabVIEW",
         # from the project brief (not on the CV)
         "React", "Docker", "Git",
     ]],
@@ -70,39 +77,52 @@ DEFAULT_PROFILE = {
          "bullets": [
              "L2 industrial process-monitoring platform — acquires real-time process data from the L1 server and displays live machine status, alarms and process values across production lines.",
              "Recipe management: full CRUD for recipes, per-machine recipe assignment, and per-machine / per-recipe production reports.",
-             "User management: group-level and user-level CRUD, multi-tier RBAC (operator, supervisor, admin), configurable security policy and feature-level access-rights control.",
-             "Machine registration and configuration, including database backup and restore for administrators.",
-             "Digital signature functionality meeting 21 CFR Part 11 electronic signature requirements, plus a tamper-evident audit trail of all system and user actions.",
-             "Packaged the FastAPI backend as a standalone Windows executable (PyInstaller) running as a persistent background service via NSSM.",
+             "User management: group-level and user-level CRUD, multi-tier RBAC (operator, supervisor, admin), configurable security policy, change-password functionality and feature-level access-rights control.",
+             "Machine registration and configuration: register machines, configure parameters, manage machine-level settings; settings module includes database backup and restore for administrators.",
+             "Digital signature functionality — users digitally sign off critical actions (recipe approvals, batch releases) with credentials that are cryptographically recorded, fully meeting 21 CFR Part 11 electronic signature requirements.",
+             "L2 LineSync audit module: tamper-evident log of all system and user actions, with electronic audit trails and data integrity controls for pharma and regulated manufacturing compliance.",
+             "Packaged the FastAPI backend as a standalone Windows executable using PyInstaller and registered it as a persistent background service via NSSM — enabling single-click deployment on production-floor machines with no Python environment dependency.",
          ]},
         {"name": "OPC Server — Custom Industrial Data Gateway", "tech": "Python · Django · MySQL · OPC-UA · Modbus TCP/RTU · FINS Serial · FINS Ethernet",
          "description": "Open-source alternative to Kepware with pluggable protocol drivers",
          "skills": ["Python", "Django", "MySQL", "OPC", "OPC UA", "Modbus", "FINS", "PLC"],
          "bullets": [
-             "Engineered a fully custom Python OPC server from scratch as an open-source alternative to commercial OPC servers such as Kepware.",
-             "Pluggable, protocol-agnostic driver architecture with four production drivers: Modbus TCP/RTU, FINS Serial, FINS Ethernet and OPC-UA.",
-             "Reads live process data from PLCs and persists it into MySQL with a normalised schema for historical analysis, trend reporting and alarm logging.",
+             "Engineered a fully custom Python OPC server from scratch as a direct, open-source alternative to commercial OPC servers such as Kepware — delivering equivalent PLC connectivity and data acquisition capabilities at zero licensing cost.",
+             "Implemented a pluggable, protocol-agnostic driver architecture with four production drivers: Modbus TCP/RTU, FINS Serial, FINS Ethernet and OPC-UA — allowing new device types to be onboarded by adding a driver module without touching core server logic.",
+             "Reads live process data from PLCs through the driver layer and persists it into MySQL with a normalised schema supporting historical analysis, trend reporting and alarm logging.",
          ]},
         {"name": "Pulse Connect — OPC-UA Tag Browser & Config Generator", "tech": "Python · OPC-UA (asyncua) · Angular · FastAPI · MySQL",
          "description": "Browse OPC-UA tags and generate data-logging config",
          "skills": ["Python", "OPC UA", "Angular", "FastAPI", "MySQL"],
          "bullets": [
-             "Connects to an OPC-UA server, browses the tag namespace and lets engineers classify tags as Process Tags or Alarm Tags through a guided UI.",
-             "Generates a structured config.ini consumed directly by machine data-logging services, reducing commissioning time for new machines.",
+             "Full-stack industrial tool: connects to an OPC-UA server, browses the tag namespace, and lets engineers classify discovered tags as Process Tags or Alarm Tags through a guided UI — replacing a previously manual, error-prone process.",
+             "Generates a structured config.ini file from the selected tag configuration, consumed directly by machine data-logging services with no further manual editing.",
+             "Reduced commissioning time for new machines by enabling non-specialist engineers to configure data-logging end-to-end without editing raw configuration files.",
          ]},
         {"name": "Pharma Processing Machine — Configuration Tool", "tech": "Python · config.ini · Industrial Protocols · Pharma Manufacturing",
          "description": "Validated config.ini generator for pharma machines",
          "skills": ["Python"],
          "bullets": [
-             "Python utility that generates validated config.ini files (IP addresses, database settings, trigger bits) for pharma processing machines in a regulated environment.",
+             "Python utility that generates config.ini files for pharma processing machines — specifying IP addresses, database connection settings and trigger bits required for machine data-logging services to initialise correctly.",
+             "Eliminates manual INI file editing errors through a structured, validated configuration workflow; deployed in a regulated pharma manufacturing environment ahead of production runs.",
          ]},
-        {"name": "Compression Machine Interface — Angular SCADA", "tech": "Angular · TypeScript · LabVIEW · Zenon",
-         "description": "Operator screens on top of LabVIEW / Zenon",
-         "skills": ["Angular", "TypeScript", "SCADA", "LabVIEW", "Zenon"],
+        {"name": "Compression Machine Interface — Angular SCADA", "tech": "Angular · TypeScript · LabVIEW · Industrial SCADA Software",
+         "description": "Operator screens on top of LabVIEW",
+         "skills": ["Angular", "TypeScript", "SCADA", "LabVIEW"],
          "bullets": [
-             "Angular-based SCADA application with real-time operator screens for compression machines.",
-             "Defined the data interface contract between the Angular frontend and the LabVIEW / Zenon backend layer.",
-             "Leading a junior developer on this project — component architecture, code review, integration testing and delivery planning.",
+             "Angular-based SCADA application providing real-time operator screens for compression machines — machine status, process values, operator controls and parameter configuration.",
+             "Defined the data interface contract between the Angular frontend and the LabVIEW backend layer, ensuring reliable state synchronisation and clean separation of concerns.",
+             "Leading a junior developer on this project — component architecture, code review, integration testing approach and delivery planning.",
+         ]},
+        {"name": "Job Application — Job Discovery & Application Tracking Platform", "tech": "Python · FastAPI · SQLAlchemy · PostgreSQL · React · TypeScript · Tailwind CSS · Playwright · Vercel · Neon",
+         "description": "Personal project: job discovery, CV matching and application tracking",
+         "skills": ["Python", "FastAPI", "PostgreSQL", "React", "TypeScript", "REST APIs"],
+         "bullets": [
+             "Built a full-stack platform that collects jobs in Germany from the official job APIs of 75+ company career sites (Greenhouse, Lever, SmartRecruiters, Personio, Ashby, Workday) and public job feeds, with rate limiting and source-health monitoring.",
+             "Implemented job normalisation, duplicate detection, version history for every job description, and freshness checks that hide closed postings.",
+             "Developed rule-based CV-to-job matching (0–100 score from 8 weighted criteria) with requirement-level skill-gap analysis and language / visa checks.",
+             "Built an application tracker (table, Kanban board, calendar) and a Word/PDF CV generator in German/EU format.",
+             "Automated form filling on company application pages with Playwright, using only verified profile facts and stopping at CAPTCHAs or unknown questions; deployed on Vercel with Neon PostgreSQL; 48 automated tests.",
          ]},
     ],
 }
@@ -115,51 +135,48 @@ DEFAULT_SETTINGS = {
     "repeat_every_minutes": 30,       # the automation searches again after this pause
     "daily_auto_start": True,         # start the automation by itself every day...
     "daily_start_time": "08:00",      # ...at this time (computer's local time), as long as the backend is running
-    "sources": ["greenhouse", "lever", "smartrecruiters", "personio", "ashby", "arbeitnow",
+    "sources": ["greenhouse", "lever", "smartrecruiters", "personio", "ashby", "workday", "amazon", "arbeitnow",
                 "berlinstartupjobs", "munichstartup", "startupcityhamburg"],
     # Job roles to search for. JOB_KEYWORDS in .env replaces this list on another computer.
     "search_queries": [k.strip() for k in settings.job_keywords.split(",") if k.strip()] or [
-        "Software Engineer", "Mid Software Engineer", "Software Developer", "Softwareentwickler",
-        "Industrial Software Engineer", "IIoT Engineer", "IoT Software Engineer", "Automation Software Engineer",
-        "SCADA Software Developer", "MES Integration Engineer", "OT Software Engineer",
-        "Manufacturing Software Engineer", "Python Developer", "Python Software Engineer", "Python Backend Engineer",
-        "Django Developer", "Backend Engineer", "Backend Developer", "Full Stack Engineer", "Full Stack Developer",
-        "Python Full Stack Developer", "Angular Developer", "TypeScript Developer", "Node.js Developer", "Prompt Engineer",
+        # industrial / OT first (the CV's focus), then Python backend, full stack and general software roles
+        "Industrial Software Engineer", "Automation Software Engineer",
+        "Softwareentwickler Automatisierung", "SCADA Engineer", "SCADA Software Developer",
+        "MES Developer", "MES Integration Engineer", "IIoT Engineer", "Industrial IoT Engineer", "IoT Software Engineer",
+        "OT Software Engineer", "Manufacturing Software Engineer", "Python Developer", "Python Software Engineer",
+        "Python Backend Engineer", "FastAPI Developer", "Django Developer", "Backend Engineer", "Backend Developer",
+        "Full Stack Engineer", "Full Stack Developer", "Python Full Stack Developer", "Angular Developer",
+        "TypeScript Developer", "Node.js Developer", "Software Engineer", "Mid Software Engineer", "Software Developer",
+        "Softwareentwickler",
+        # close IT roles that use the same skills (user, 2026-10-19)
+        "Test Automation Engineer", "Application Support Engineer", "Business Systems Analyst",
     ],
     # Companies to follow = their own careers pages (the part of their job-board URL).
     # Checked 2026-10-07: each has software/engineering jobs in Germany. Banks/fintech, industrial/IoT, tech.
     "greenhouse_boards": ["celonis", "n26", "getyourguide", "contentful", "raisin", "commercetools", "helsing",
                           "isaraerospace", "sumup", "hellofresh", "flix", "staffbase", "parloa",
                           "traderepublicbank", "solarisbank", "adyen", "konux", "tulip", "trivago", "scout24",
-                          "autoscout24", "doctolib", "wolt", "freenow"],  # boards.greenhouse.io/<board>
+                          "autoscout24", "doctolib", "wolt", "freenow", "kinexon"],  # boards.greenhouse.io/<board>
     "lever_companies": ["mobileye"],  # jobs.lever.co/<company>
-    "smartrecruiters_companies": ["BoschGroup", "Continental", "DeliveryHero", "Sixt", "Brainlab"],  # jobs.smartrecruiters.com/<Company>
+    "smartrecruiters_companies": ["BoschGroup", "Continental", "DeliveryHero", "Sixt", "Brainlab", "enlyze",
+                                  "alten", "careerteam"],  # last two: recruitment companies (ALTEN Germany, CareerTeam)  # jobs.smartrecruiters.com/<Company>
     "personio_companies": ["vivid", "ottonova", "ryd", "magazino", "wandelbots", "arculus", "envelio", "kiwigrid",
-                           "node-energy", "stark", "1komma5grad", "tonies"],  # <company>.jobs.personio.de
+                           "node-energy", "stark", "1komma5grad", "tonies",
+                           # industrial automation / energy software (checked 2026-10-19)
+                           "softing", "meteocontrol", "wattfox", "twaice", "gridx", "entrix", "lumenaza"],  # <company>.jobs.personio.de
+    "saved_searches": [],             # Jobs page: [{"name": "Munich industrial", "filters": {...}}]
     "goal_date": "2027-01-31",        # Germany job by January 2027 (Strategy page counts down to this)
     "study_hours_per_week": 15,       # time you can spend learning; the weekly plan splits it
     "ashby_boards": ["qonto", "moss", "upvest", "sereact", "enpal", "babbel", "n8n", "tacto", "langdock", "forto",
-                     "deepl", "black-forest-labs"],  # jobs.ashbyhq.com/<board>
-}
-
-# CV versions: the same real CV, with a different headline and skill order. Nothing is added.
-# A job gets the version whose role family fits it best (logic/analysis.py → recommend_cv_version).
-CV_VERSIONS = {
-    "CV-001": {"name": "General Germany Software Engineer", "family": "general",
-               "headline": "Software Engineer · Python, Full Stack & Industrial Systems",
-               "focus": ["Python", "TypeScript", "Angular", "React", "FastAPI", "Django", "REST APIs", "MySQL", "Docker"]},
-    "CV-002": {"name": "Python Backend Germany", "family": "backend",
-               "headline": "Python Backend Engineer · FastAPI, Django, REST APIs",
-               "focus": ["Python", "FastAPI", "Django", "REST APIs", "MySQL", "SQL", "JWT", "RBAC", "Docker", "AWS"]},
-    "CV-003": {"name": "Industrial Software Engineer", "family": "industrial",
-               "headline": "Industrial Software Engineer · WebSCADA, OPC UA & PLC Integration",
-               "focus": ["Python", "SCADA", "WebSCADA", "OPC UA", "OPC", "Modbus", "FINS", "PLC", "21 CFR Part 11", "FastAPI", "Angular"]},
-    "CV-004": {"name": "IIoT Engineer", "family": "iiot",
-               "headline": "IIoT Engineer · Machine Data, OPC UA, Modbus & Python",
-               "focus": ["IIoT", "OPC UA", "Modbus", "FINS", "PLC", "Python", "MySQL", "Docker", "FastAPI"]},
-    "CV-005": {"name": "Full Stack Developer", "family": "fullstack",
-               "headline": "Full Stack Developer · Angular/React, Node.js, Python",
-               "focus": ["Angular", "React", "TypeScript", "JavaScript", "Node.js", "Express.js", "Python", "FastAPI", "MongoDB", "MySQL"]},
+                     "deepl", "black-forest-labs", "robco", "workerbase"],
+    # Big companies' own Workday career sites: host/tenant/site (checked 2026-10-19: each has jobs in Germany).
+    # Not usable: Siemens (401), SAP (Cloudflare challenge), BMW/VW/Mercedes/Porsche/Allianz (own portals, no API).
+    "workday_sites": ["db.wd3.myworkdayjobs.com/db/DBWebSite", "nvidia.wd5.myworkdayjobs.com/nvidia/NVIDIAExternalCareerSite",
+                      "ag.wd3.myworkdayjobs.com/ag/Airbus", "accenture.wd103.myworkdayjobs.com/accenture/AccentureCareers",
+                      "ms.wd5.myworkdayjobs.com/ms/External", "citi.wd5.myworkdayjobs.com/citi/2",
+                      "autodesk.wd1.myworkdayjobs.com/autodesk/Ext", "hp.wd5.myworkdayjobs.com/hp/ExternalCareerSite",
+                      "redhat.wd5.myworkdayjobs.com/redhat/jobs", "workday.wd5.myworkdayjobs.com/workday/Workday",
+                      "statestreet.wd1.myworkdayjobs.com/statestreet/Global"],  # jobs.ashbyhq.com/<board>
 }
 
 # Role families for ranking which roles fit you (title words, case-insensitive). Primary = your main targets.

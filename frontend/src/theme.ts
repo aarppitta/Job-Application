@@ -76,7 +76,7 @@ export const VISA: Record<string, Look> = {
 /** Score colors: 90+ green, 75–89 blue, 60–74 amber, below 60 grey. */
 export function scoreTone(score: number) {
   if (score >= 90) return { label: "Excellent match", text: "text-ok", bg: "bg-ok-bg", stroke: "var(--color-ok-strong)" };
-  if (score >= 75) return { label: "Strong match", text: "text-info", bg: "bg-info-bg", stroke: "var(--color-primary)" };
+  if (score >= 75) return { label: "Strong match", text: "text-primary", bg: "bg-primary-50", stroke: "var(--color-primary)" };
   if (score >= 60) return { label: "Partial match", text: "text-warn", bg: "bg-warn-bg", stroke: "#f59e0b" };
   return { label: "Weak match", text: "text-neutral", bg: "bg-neutral-bg", stroke: "#94a3b8" };
 }

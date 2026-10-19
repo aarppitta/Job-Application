@@ -1,4 +1,4 @@
-"""Job boards page: every platform from the plan, grouped like the source diagram.
+"""Job boards page (every platform, grouped like the source diagram) and Source health.
 
 - "automatic": the app reads it by itself (official/free API)
 - "link":      no public API, or scraping is forbidden -> a one-click search with your keyword;
@@ -7,10 +7,14 @@
 from urllib.parse import quote, quote_plus
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.auth import current_profile
+from app.database import get_db
 from app.defaults import user_settings
-from app.models import Profile
+from app.models import Job, Profile, SourceStatus
+from app.sources import SOURCES
 
 router = APIRouter(prefix="/api", tags=["job boards"])
 
@@ -23,15 +27,17 @@ def google_site(site: str, q: str) -> str:
 def boards(q: str, enabled: set[str], settings: dict) -> list[dict]:
     slug = "-".join(q.lower().split())
     followed = len(settings["greenhouse_boards"]) + len(settings["smartrecruiters_companies"]) + \
-        len(settings["lever_companies"]) + len(settings["personio_companies"]) + len(settings["ashby_boards"])
+        len(settings["lever_companies"]) + len(settings["personio_companies"]) + len(settings["ashby_boards"]) + len(settings["workday_sites"])
 
     def auto(source: str) -> str:
         return "automatic" if source in enabled else "off"
 
     germany = [
-        {"name": "Company careers pages (Greenhouse, SmartRecruiters, Lever, Personio, Ashby)", "kind": "automatic",
+        {"name": "Company careers pages (Greenhouse, SmartRecruiters, Lever, Personio, Ashby, Workday)", "kind": "automatic",
          "why": f"Jobs often posted only on the company's own site. Official APIs of {followed} followed companies "
-                "(Helsing, N26, Trade Republic, Bosch, Wandelbots, Upvest, …). Add more in Settings.", "url": None},
+                "(Helsing, N26, Trade Republic, Bosch, Deutsche Bank, NVIDIA, Airbus, Softing, …). Add more in Settings.", "url": None},
+        {"name": "Amazon / AWS", "kind": auto("amazon"), "why": "amazon.jobs search API, jobs in Germany (Berlin, Dresden, Munich…)",
+         "url": f"https://www.amazon.jobs/en/search?base_query={quote(q)}&country=DEU"},
         {"name": "Arbeitnow", "kind": auto("arbeitnow"),
          "why": "Free public API, many English-speaking jobs in Germany (arbeitnow.com)", "url": f"https://www.arbeitnow.com/?search={quote(q)}"},
         {"name": "LinkedIn Jobs", "kind": "link", "why": "International tech jobs and recruiters (no API; bots forbidden)",
@@ -86,12 +92,14 @@ def boards(q: str, enabled: set[str], settings: dict) -> list[dict]:
         employers.append({"name": company, "kind": "link", "why": "Own careers portal (no public job API, checked)",
                           "url": google_site(site, q)})
     # Big banks and insurers: own careers portals (Workday / SAP SuccessFactors), no public job API
-    for company, site in [("Deutsche Bank", "careers.db.com"), ("Commerzbank", "jobs.commerzbank.com"),
+    for company, site in [("Commerzbank", "jobs.commerzbank.com"),
                           ("ING Deutschland", "ing.de/karriere"), ("DKB", "dkb.de/karriere"), ("KfW", "kfw.de/karriere"),
                           ("DZ Bank", "dzbank.de/karriere"), ("Allianz", "careers.allianz.com"), ("Munich Re", "munichre.com/careers")]:
         employers.append({"name": company, "kind": "link", "why": "Bank / insurer careers portal (no public job API)",
                           "url": google_site(site, q)})
     employers.insert(1, {"name": "Bosch", "kind": "automatic", "why": "Read automatically via its SmartRecruiters API", "url": None})
+    employers.insert(2, {"name": "Deutsche Bank, NVIDIA, Airbus, Accenture, Morgan Stanley, Citi…", "kind": auto("workday"),
+                         "why": "Read automatically from their Workday careers sites (Settings → Workday career sites)", "url": None})
     return [{"group": "Germany", "boards": germany}, {"group": "Cities (startup boards)", "boards": cities}, {"group": "Europe", "boards": europe}, {"group": "Direct employers", "boards": employers}]
 
 
@@ -100,3 +108,28 @@ def job_boards(q: str | None = None, profile: Profile = Depends(current_profile)
     settings = user_settings(profile)
     keyword = (q or next(iter(settings["search_queries"]), "Software Engineer")).strip()
     return {"keyword": keyword, "keywords": settings["search_queries"], "groups": boards(keyword, set(settings["sources"]), settings)}
+
+
+@router.get("/source-health")
+def source_health(profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
+    """Which sources were searched, when, did it work, how many jobs each one gave (open / closed)."""
+    settings = user_settings(profile)
+    status = {s.source: s for s in db.query(SourceStatus).filter_by(user_id=profile.user_id)}
+    counts = dict(db.query(Job.source, func.count()).filter(Job.user_id == profile.user_id).group_by(Job.source).all())
+    closed = dict(db.query(Job.source, func.count()).filter(Job.user_id == profile.user_id, Job.closed_at.isnot(None))
+                  .group_by(Job.source).all())
+    newest = dict(db.query(Job.source, func.max(Job.discovered_at)).filter(Job.user_id == profile.user_id).group_by(Job.source).all())
+    rows = []
+    for name, (_, companies_key) in SOURCES.items():
+        if name == "demo" and name not in settings["sources"]:
+            continue
+        s = status.get(name)
+        rows.append({
+            "source": name, "enabled": name in settings["sources"],
+            "companies": len(settings.get(companies_key, [])) if companies_key else None,
+            "last_checked_at": s.last_checked_at if s else None, "last_ok_at": s.last_ok_at if s else None,
+            "last_error": s.last_error if s else None, "blocked": s.blocked if s else False,
+            "jobs": counts.get(name, 0), "closed": closed.get(name, 0), "newest_job_at": newest.get(name),
+        })
+    checked = db.query(func.count(), func.max(Job.checked_at)).filter(Job.user_id == profile.user_id, Job.checked_at.isnot(None)).one()
+    return {"sources": rows, "rechecked_jobs": checked[0], "last_recheck_at": checked[1]}

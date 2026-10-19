@@ -85,7 +85,7 @@ def health(app, job, contacts: list, threshold: float) -> dict:
     items = [
         ("Official application", app is not None, 20, "Apply on the careers page and click Mark as applied"),
         ("JD match", (job.ats_score or 0) >= threshold - 10, 10, "Low match: consider skipping"),
-        ("Tailored CV", bool(app and app.tailored_cv) or bool(job.cv_prepared_at), 15, "Download the tailored CV"),
+        ("CV ready", bool(app and app.tailored_cv) or bool(job.cv_prepared_at), 15, "Download the standard CV"),
         ("Recruiter identified", bool(recruiter), 10, "Find the recruiter with the search links"),
         ("Recruiter contacted", any(c.contacted_at for c in recruiter), 15, "Send the recruiter the personal note"),
         ("Hiring manager identified", bool(manager), 5, "Find the engineering manager"),

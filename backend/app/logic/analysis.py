@@ -8,7 +8,8 @@ Every estimate is labelled as an estimate.
 """
 import re
 
-from app.defaults import CV_VERSIONS, ROLE_FAMILIES
+from app.defaults import ROLE_FAMILIES
+from app.logic.cv import degree_text
 from app.logic.interview import TOPICS, answer_guide, project_questions
 from app.logic.jd_parser import simplify
 from app.logic.learning import hindi_videos
@@ -169,12 +170,6 @@ def role_family(title: str, industrial_signals: list | None = None) -> str:
     return "general"
 
 
-def recommend_cv_version(job) -> tuple[str, str]:
-    family = role_family(job.title, job.parsed.get("industrial_signals"))
-    code = next(c for c, v in CV_VERSIONS.items() if v["family"] == family)
-    return code, f"Role family: {ROLE_FAMILIES[family]['label']}"
-
-
 # ------------------------------------------------------------------ 1. JD facts
 
 
@@ -235,7 +230,7 @@ def requirements(profile, job) -> dict:
         education.append({"item": "PhD", "status": "missing", "why": "You have an MSc"})
     elif re.search(r"bachelor|master|degree|diploma|b\.?sc|m\.?sc|studium|university|hochschul", text):
         education.append({"item": "Degree in Computer Science or related", "status": "strong",
-                          "why": "; ".join(profile.education or []) or "Not on profile"})
+                          "why": "; ".join(degree_text(e) for e in profile.education or []) or "Not on profile"})
 
     experience = []
     need, have = job.experience_required, profile.years_experience
@@ -534,10 +529,9 @@ def cv_plan(profile, job, reqs: dict, ats_info: dict) -> dict:
         if not re.search(r"\d", bullet) and set(find_skills(bullet)) & wanted:
             weak.append({"where": where, "bullet": bullet,
                          "tip": "Add a real number if you know it (machines, tags, users, response time). If you don't know it, leave it."})
-    code, why = recommend_cv_version(job)
     return {"skills_first": order[:10], "emphasize_projects": emphasize, "shorten_projects": shorten, "weak_bullets": weak[:4],
             "add_keywords": [k["keyword"] for k in ats_info["can_add"]], "never_add": [k["keyword"] for k in ats_info["must_not_add"]],
-            "cv_version": code, "cv_version_name": CV_VERSIONS[code]["name"], "cv_version_why": why}
+            "cv_version": "STANDARD", "cv_version_name": "Standard CV"}  # one CV for every application
 
 
 # ------------------------------------------------------------------ 26. Germany-specific
@@ -594,7 +588,7 @@ def final_recommendation(profile, job, scores, reqs, gaps, dsa_info, ready, plan
     dsa_days = {"Low–Medium": 2, "Medium": 5, "Medium–High": 10, "Very High": 21}[dsa_info["level"]]
     prep = min(30, max(2, round(0.5 * prep_low) + dsa_days))
     recruiter = next((c for c in sorted(contacts, key=lambda c: c["tier"])), None)
-    actions = [f"Download the tailored CV ({plan['cv_version']} · {plan['cv_version_name']})", "Apply on the official careers page",
+    actions = ["Download the standard CV", "Apply on the official careers page",
                (f"Contact {recruiter['name']} ({recruiter['role']})" if recruiter else "Find 1 recruiter with the search links and contact them")]
     actions += [f"Prepare {g['skill']}" for g in gaps[:2] if g["group"] in ("must", "preferred")]
     actions.append(f"Practice ~{min(20, dsa_info['problems'] // 4)} {dsa_info['level']} DSA problems")
@@ -606,7 +600,7 @@ def final_recommendation(profile, job, scores, reqs, gaps, dsa_info, ready, plan
         "german": {"german_required": "Required", "german_plus": "A plus", "german_jd": "Probably needed"}.get(job.language_requirement, "Not required"),
         "dsa": dsa_info["level"], "biggest_gap": gaps[0]["skill"] if gaps else "None",
         "biggest_risk": ready["risks"][0]["risk"] if ready["risks"] else "None found",
-        "preparation": f"{prep}–{prep + 4} days", "cv": f"{plan['cv_version']} · {plan['cv_version_name']}",
+        "preparation": f"{prep}–{prep + 4} days", "cv": plan["cv_version_name"],
         "contact": f"{recruiter['name']} ({recruiter['role']})" if recruiter else "Not identified yet",
         "next_actions": actions,
     }

@@ -23,6 +23,11 @@ export type Job = {
   ats_score: number | null;
   status: string;
   is_saved: boolean;
+  deadline: string | null;      // "2026-11-30": from the JD or typed by you
+  last_seen_at: string | null;  // a source listed it (last time)
+  checked_at: string | null;    // we re-opened the job page
+  closed_at: string | null;     // page gone / position filled (hidden from lists)
+  agency: string | null;        // recruitment company that advertised it (company = employer if named)
   top_skills: string[];
   application_status: string | null;
   match: { level: "good" | "stretch" | "low" | "unknown"; text: string };
@@ -60,7 +65,14 @@ export type Application = {
   cover_letter: string | null;
   notes: string | null;
   history: { status: string; at: string }[];
+  interviews: Interview[];
   job: { id: number; title: string; company: string; location: string | null; application_url: string | null };
+};
+
+export type Interview = { at: string; kind: string; note: string };
+
+export type CalendarEvent = {
+  at: string; type: "interview" | "follow_up" | "deadline"; title: string; company: string; job_id: number; note: string; overdue?: boolean;
 };
 
 export type Run = {

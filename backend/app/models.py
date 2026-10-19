@@ -1,7 +1,7 @@
 """All database tables in one place."""
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -20,7 +20,7 @@ class User(Base):
 
 
 class Profile(Base):
-    """The candidate (from the CV). The ONLY source of facts for tailored CVs and cover letters."""
+    """The candidate (from the CV). The ONLY source of facts for the standard CV and cover letters."""
     __tablename__ = "profiles"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
@@ -88,7 +88,12 @@ class Job(Base):
     ats_score: Mapped[float | None] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(30), default="NEW")  # NEW / QUALIFIED (score ≥ min) / REVIEW / NOT_QUALIFIED / RISK / APPLIED
     is_saved: Mapped[bool] = mapped_column(Boolean, default=False)
-    cv_prepared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # tailored CV downloaded
+    cv_prepared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # CV downloaded for this job
+    deadline: Mapped[date | None] = mapped_column(Date)                         # application deadline (from the JD or you)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # a source listed it (last time)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))    # we re-opened the job page (freshness)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))     # page gone / "position filled" → hidden
+    agency: Mapped[str | None] = mapped_column(String(200))  # recruitment company that advertised it (company = employer if named)
 
 
 class JobSource(Base):
@@ -139,7 +144,7 @@ class Application(Base):
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
     status: Mapped[str] = mapped_column(String(30), default="APPLIED")  # see APP_STATUSES in routes/applications.py
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)  # when you applied
-    cv_version: Mapped[str | None] = mapped_column(String(20))       # CV-002 … (defaults.CV_VERSIONS)
+    cv_version: Mapped[str | None] = mapped_column(String(20))       # STANDARD (older rows: CV-001 …)
     rejection_stage: Mapped[str | None] = mapped_column(String(30))  # CV_SCREENING / HR / TECHNICAL / … (learning from rejections)
     next_follow_up: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -148,9 +153,10 @@ class Application(Base):
     jd_version: Mapped[int | None] = mapped_column(Integer)
     score: Mapped[float | None] = mapped_column(Float)
     cover_letter: Mapped[str | None] = mapped_column(Text)
-    tailored_cv: Mapped[bytes | None] = mapped_column(LargeBinary)  # the exact CV (.docx) you applied with
+    tailored_cv: Mapped[bytes | None] = mapped_column(LargeBinary)  # the exact CV (.docx) you applied with (the standard CV)
     notes: Mapped[str | None] = mapped_column(Text)
     history: Mapped[list] = mapped_column(JSON, default=list)   # [{"status", "at"}]
+    interviews: Mapped[list] = mapped_column(JSON, default=list)  # [{"at": ISO datetime, "kind": "HR screen", "note"}]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
@@ -203,7 +209,7 @@ class OutreachContact(Base):
 
 
 class CompanyResearch(Base):
-    """Company + interview-process research done by Claude with web search. Every fact has a source and confidence."""
+    """Company + interview-process research done by AI with web search. Every fact has a source and confidence."""
     __tablename__ = "company_research"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -224,3 +230,54 @@ class MockSession(Base):
     questions: Mapped[list] = mapped_column(JSON, default=list)   # [{"question", "category", "probability"}]
     answers: Mapped[list] = mapped_column(JSON, default=list)     # [{"question", "answer", "grade"}]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class SourceStatus(Base):
+    """Source health: when each job source was last searched, and whether it worked."""
+    __tablename__ = "source_status"
+    __table_args__ = (UniqueConstraint("user_id", "source"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    source: Mapped[str] = mapped_column(String(50))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)          # None = the last search worked
+    blocked: Mapped[bool] = mapped_column(Boolean, default=False)  # 403 / CAPTCHA: needs a human, never bypassed
+
+
+class RecruitmentCompany(Base):
+    """Recruitment directory (data/recruitment_companies.py) + YOUR interaction with each recruiter.
+    Unknown = NULL. The *_verified fields are never assumed: only you set them, with a source URL."""
+    __tablename__ = "recruitment_companies"
+    __table_args__ = (UniqueConstraint("user_id", "seed_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    seed_id: Mapped[int] = mapped_column(Integer)                  # 1…50 from the starting list
+    name: Mapped[str] = mapped_column(String(200))
+    website_url: Mapped[str] = mapped_column(String(500))
+    candidate_registration_url: Mapped[str | None] = mapped_column(String(500))
+    country: Mapped[str | None] = mapped_column(String(100))
+    recruitment_category: Mapped[str] = mapped_column(String(30))  # india / staffing / engineering / specialist
+    focus: Mapped[str | None] = mapped_column(Text)
+    industry_specializations: Mapped[list] = mapped_column(JSON, default=list)
+    job_family_specializations: Mapped[list] = mapped_column(JSON, default=list)
+    aliases: Mapped[list] = mapped_column(JSON, default=list)       # names used in job postings ("ALTEN")
+    job_feed: Mapped[str | None] = mapped_column(String(100))      # "smartrecruiters:ALTEN" = read automatically; None = manual
+    international_recruitment_supported: Mapped[bool | None] = mapped_column(Boolean)
+    india_candidate_support_verified: Mapped[bool | None] = mapped_column(Boolean)
+    visa_sponsorship_support_verified: Mapped[bool | None] = mapped_column(Boolean)
+    relocation_support_verified: Mapped[bool | None] = mapped_column(Boolean)
+    german_language_requirements: Mapped[str | None] = mapped_column(String(200))
+    # unverified / website_ok (the app opened the site) / website_unreachable / website_blocked / confirmed (you, with a source)
+    verification_status: Mapped[str] = mapped_column(String(30), default="unverified")
+    source_url: Mapped[str | None] = mapped_column(String(500))     # evidence for the last verification
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_note: Mapped[str | None] = mapped_column(Text)     # what the check found ("HTTP 200 → https://…")
+    # your workflow with this recruiter (not their decision about you)
+    status: Mapped[str] = mapped_column(String(30), default="NOT_REVIEWED")
+    is_saved: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_follow_up: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

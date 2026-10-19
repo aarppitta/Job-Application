@@ -8,6 +8,7 @@ Nothing is said about the company except what is in the JD.
 """
 import re
 
+from app.logic.cv import degree_text
 from app.logic.skills import find_skills, with_implied
 
 # Typical interview topics per skill. Add a line to cover a new skill.
@@ -167,7 +168,7 @@ def project_questions(profile, focus: set[str] | None = None) -> list[dict]:
     return found
 
 
-# Ideal answer structures, used by the mock interview (and as the fallback when Claude is not configured).
+# Ideal answer structures, used by the mock interview (and as the fallback when AI is not configured).
 ANSWER_STRUCTURES = {
     "HR": ["Short answer first (1 sentence)", "One concrete reason tied to this company/role", "Link to your experience", "End positively / with a question"],
     "Project deep dive": ["Context: what the system does and for whom", "Architecture: main parts and data flow", "Your role and decisions (why this, not that)",
@@ -212,7 +213,7 @@ def _cv_facts(question: str, category: str, profile, where: str | None, skill: s
         current = (profile.experience or [{}])[0]
         facts = [f"Now: {current.get('role')} at {current.get('company')} ({current.get('dates')})"] if current else []
         facts += [f"Before: {e['role']} at {e['company']}" for e in (profile.experience or [])[1:3]]
-        facts += [f"Education: {e}" for e in (profile.education or [])[:1]]
+        facts += [f"Education: {degree_text(e)}" for e in (profile.education or [])[:1]]
         facts += [f"Key project: {p['name']}" for p in profile.projects[:2]]
         return facts
     return []

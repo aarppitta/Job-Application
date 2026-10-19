@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     profile_json: str = ""
     profile_file: str = ""
 
-    # Optional Claude: research, mock-interview grading, answer drafts, cover letters.
+    # Optional AI: research, mock-interview grading, answer drafts, cover letters.
     ai_api_key: str = ""
     ai_model: str = "claude-opus-5-5"
 

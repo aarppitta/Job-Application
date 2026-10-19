@@ -43,6 +43,13 @@ NEW_COLUMNS = [
     " ADD COLUMN IF NOT EXISTS referral BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS analysis JSON DEFAULT '{}'",
     "UPDATE applications SET status = 'HR_SCREEN' WHERE status = 'INTERVIEW'",
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS cv_prepared_at TIMESTAMPTZ",
+    # 2026-10-19 freshness (closed jobs), deadlines, interview dates
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deadline DATE, ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ,"
+    " ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ",
+    "UPDATE jobs SET last_seen_at = discovered_at WHERE last_seen_at IS NULL",
+    "ALTER TABLE applications ADD COLUMN IF NOT EXISTS interviews JSON DEFAULT '[]'",
+    # 2026-10-19 recruitment companies directory (table created by create_all)
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agency VARCHAR(200)",
 ]
 
 

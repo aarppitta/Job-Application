@@ -9,16 +9,21 @@ export const inputClass =
   "transition-[border-color,box-shadow] duration-150 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 " +
   "disabled:cursor-not-allowed disabled:bg-canvas disabled:text-muted";
 
+// Card icon colours: picked from the title, so the same card always has the same colour and a page gets variety.
+const CARD_TONES = ["bg-teal-100 text-teal-700", "bg-sky-100 text-sky-700", "bg-emerald-100 text-emerald-600", "bg-amber-100 text-amber-600",
+  "bg-pink-100 text-pink-600", "bg-lime-100 text-lime-700", "bg-orange-100 text-orange-600", "bg-cyan-100 text-cyan-700"];
+const toneFor = (key: string) => CARD_TONES[[...key].reduce((s, ch) => s + ch.charCodeAt(0), 0) % CARD_TONES.length];
+
 export function Card({ title, subtitle, icon: Icon, right, children, ai, className = "" }: {
   title?: ReactNode; subtitle?: ReactNode; icon?: LucideIcon; right?: ReactNode; children: ReactNode; ai?: boolean; className?: string;
 }) {
   return (
-    <section className={`min-w-0 rounded-card border bg-surface p-4 shadow-card sm:p-5 ${ai ? "border-ai-100" : "border-line"} ${className}`}>
+    <section className={`min-w-0 rounded-card border p-4 shadow-card sm:p-5 ${ai ? "border-ai-100 bg-gradient-to-br from-ai-50/80 via-surface to-surface" : "border-line/80 bg-surface"} ${className}`}>
       {(title || right) && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             {Icon && (
-              <span className={`grid size-9 shrink-0 place-items-center rounded-control ${ai ? "bg-ai-50 text-ai" : "bg-primary-50 text-primary"}`}>
+              <span className={`grid size-9 shrink-0 place-items-center rounded-control ${ai ? "bg-ai-100 text-ai" : toneFor(typeof title === "string" ? title : "card")}`}>
                 <Icon className="size-[18px]" aria-hidden />
               </span>
             )}
@@ -37,15 +42,15 @@ export function Card({ title, subtitle, icon: Icon, right, children, ai, classNa
 
 type ButtonKind = "primary" | "normal" | "danger" | "success" | "ai" | "ghost";
 const BUTTON: Record<ButtonKind, string> = {
-  primary: "bg-primary text-white hover:bg-primary-hover shadow-sm",
-  normal: "border border-line bg-surface text-ink hover:bg-canvas hover:border-input",
+  primary: "bg-grad-primary text-white shadow-sm shadow-teal-500/20 hover:brightness-105 hover:shadow-md hover:shadow-teal-500/25",
+  normal: "border border-line bg-surface text-ink hover:bg-primary-50 hover:border-primary/30 hover:text-primary",
   danger: "border border-red-200 bg-surface text-bad hover:bg-bad-bg",
-  success: "bg-ok-strong text-white hover:bg-ok shadow-sm",
-  ai: "bg-ai text-white hover:bg-ai-hover shadow-sm",
+  success: "bg-grad-success text-white shadow-sm shadow-emerald-500/20 hover:brightness-105",
+  ai: "bg-grad-ai text-white shadow-sm shadow-orange-500/20 hover:brightness-105",
   ghost: "text-muted hover:bg-canvas hover:text-ink",
 };
 export const buttonClass = (kind: ButtonKind = "normal") =>
-  "inline-flex items-center justify-center gap-2 rounded-control px-3.5 py-2 text-sm font-medium transition-colors duration-150 " +
+  "inline-flex items-center justify-center gap-2 rounded-control px-3.5 py-2 text-sm font-medium transition-all duration-150 " +
   "disabled:cursor-not-allowed disabled:opacity-50 " + BUTTON[kind];
 
 export function Button({ children, onClick, kind = "normal", disabled, loading, icon: Icon, type = "button", title, className = "" }: {
@@ -64,6 +69,8 @@ export function PageTitle({ title, subtitle, right }: { title: ReactNode; subtit
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
       <div className="min-w-0">
+        {/* accent in the colour of the current menu section (set by Layout as --section) */}
+        <span className="mb-2 block h-1.5 w-12 rounded-full" style={{ background: "linear-gradient(90deg, var(--section, #2dd4bf), #fde68a)" }} aria-hidden />
         <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[30px] sm:leading-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
@@ -137,9 +144,9 @@ export function Chip({ on, onClick, children, count }: { on: boolean; onClick: (
   return (
     <button type="button" onClick={onClick} aria-pressed={on}
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
-        on ? "border-primary bg-primary-50 text-primary" : "border-line bg-surface text-muted hover:border-input hover:text-ink"}`}>
+        on ? "border-teal-300 bg-teal-50 text-teal-800" : "border-line bg-surface text-muted hover:border-primary/30 hover:bg-primary-50 hover:text-primary"}`}>
       {children}
-      {count !== undefined && <span className={`rounded-full px-1.5 tabular-nums ${on ? "bg-primary text-white" : "bg-canvas"}`}>{count}</span>}
+      {count !== undefined && <span className={`rounded-full px-1.5 tabular-nums ${on ? "bg-teal-200/70 text-teal-900" : "bg-canvas"}`}>{count}</span>}
     </button>
   );
 }
@@ -168,7 +175,7 @@ export function Notice({ children, tone = "info", icon: Icon }: { children: Reac
 export function Empty({ text, title, icon: Icon = Inbox, action }: { text: ReactNode; title?: string; icon?: LucideIcon; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center rounded-card border border-dashed border-input bg-surface px-6 py-10 text-center">
-      <span className="mb-3 grid size-12 place-items-center rounded-full bg-primary-50 text-primary"><Icon className="size-6" aria-hidden /></span>
+      <span className="mb-3 grid size-12 place-items-center rounded-full bg-brand text-teal-700 ring-1 ring-black/5"><Icon className="size-6" aria-hidden /></span>
       {title && <h3 className="text-base font-semibold text-ink">{title}</h3>}
       <p className="mt-1 max-w-md text-sm text-muted">{text}</p>
       {action && <div className="mt-4">{action}</div>}
@@ -204,22 +211,30 @@ export function SkeletonPage() {
 export function KpiCard({ label, value, icon: Icon, tone = "primary", hint }: {
   label: string; value: ReactNode; icon: LucideIcon; tone?: "primary" | "ok" | "bad" | "violet" | "offer" | "warn" | "ai"; hint?: ReactNode;
 }) {
-  const tile = { primary: "bg-primary-50 text-primary", ok: "bg-ok-bg text-ok", bad: "bg-bad-bg text-bad", violet: "bg-violet-bg text-violet",
-    offer: "bg-offer-bg text-offer", warn: "bg-warn-bg text-warn", ai: "bg-ai-50 text-ai" }[tone];
+  // tinted tile + solid icon + coloured number, one colour family per tone
+  const look = {
+    primary: { box: "from-sky-50 border-sky-100", icon: "bg-sky-100 text-sky-700", num: "text-sky-700" },
+    ok: { box: "from-emerald-50 border-emerald-100", icon: "bg-emerald-100 text-emerald-700", num: "text-emerald-700" },
+    bad: { box: "from-rose-50 border-rose-100", icon: "bg-rose-100 text-rose-600", num: "text-rose-600" },
+    violet: { box: "from-pink-50 border-pink-100", icon: "bg-pink-100 text-pink-600", num: "text-pink-600" },
+    offer: { box: "from-teal-50 border-teal-100", icon: "bg-teal-100 text-teal-700", num: "text-teal-700" },
+    warn: { box: "from-amber-50 border-amber-100", icon: "bg-amber-100 text-amber-700", num: "text-amber-700" },
+    ai: { box: "from-orange-50 border-orange-100", icon: "bg-orange-100 text-orange-600", num: "text-orange-600" },
+  }[tone];
   return (
-    <div className="min-w-0 rounded-card border border-line bg-surface p-4 shadow-card transition-shadow duration-200 hover:shadow-lift">
+    <div className={`min-w-0 rounded-card border bg-gradient-to-br to-surface p-4 shadow-card transition duration-200 hover:-translate-y-0.5 hover:shadow-lift ${look.box}`}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[13px] font-medium leading-snug text-muted">{label}</p>
-        <span className={`grid size-8 shrink-0 place-items-center rounded-control ${tile}`}><Icon className="size-4" aria-hidden /></span>
+        <p className="text-[13px] font-medium leading-snug text-slate-600">{label}</p>
+        <span className={`grid size-9 shrink-0 place-items-center rounded-control ${look.icon}`}><Icon className="size-4" aria-hidden /></span>
       </div>
-      <p className="mt-2 text-2xl font-bold tabular-nums text-ink sm:text-[28px]">{value ?? "–"}</p>
+      <p className={`mt-2 text-2xl font-bold tabular-nums sm:text-[28px] ${look.num}`}>{value ?? "–"}</p>
       {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
     </div>
   );
 }
 
 export function ProgressBar({ value, tone = "primary", label }: { value: number; tone?: "primary" | "ok" | "ai"; label?: string }) {
-  const bar = { primary: "bg-primary", ok: "bg-ok-strong", ai: "bg-ai" }[tone];
+  const bar = { primary: "bg-grad-primary", ok: "bg-grad-success", ai: "bg-grad-ai" }[tone];
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
@@ -298,7 +313,7 @@ export function Table({ head, children }: { head: string[]; children: ReactNode 
     <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-line bg-canvas text-xs font-semibold uppercase tracking-wide text-muted">
+          <thead className="border-b border-teal-100 bg-gradient-to-r from-teal-50 via-amber-50/70 to-rose-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>{head.map((h, i) => <th key={i} scope="col" className="whitespace-nowrap px-4 py-3">{h}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-line">{children}</tbody>

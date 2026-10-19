@@ -1,5 +1,6 @@
 """Saving jobs (with duplicate check + JD versions) and scoring them."""
 import time
+from datetime import date
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -8,7 +9,8 @@ from app.defaults import user_settings
 from app.logic import dedup
 from app.logic.jd_parser import parse_job
 from app.logic.scoring import score_job
-from app.models import Company, JDVersion, Job, JobSource, Profile, Score, now
+from app.models import Company, JDVersion, Job, JobSource, Profile, Score, SourceStatus, now
+from app.services import agencies
 from app.sources import SOURCES, SourceBlocked, search
 
 
@@ -50,7 +52,10 @@ def save_job(db: Session, user_id: int, raw: dict) -> tuple[Job, str, str]:
                "url": raw.get("source_url"), "application_url": raw.get("application_url"), "location": raw.get("location")}
     existing, reason = find_duplicate(db, user_id, compare, key)
 
+    agency = agencies.match_agency(db, user_id, raw["company"])  # posted by a recruitment company?
     if existing:
+        existing.last_seen_at, existing.closed_at = now(), None  # listed again by a source = still open
+        existing.agency = existing.agency or (agency.name if agency else None)
         link = db.query(JobSource).filter_by(job_id=existing.id, source=raw["source"], url=raw.get("source_url")).first()
         if link:
             link.last_seen = now()
@@ -79,7 +84,8 @@ def save_job(db: Session, user_id: int, raw: dict) -> tuple[Job, str, str]:
         user_id=user_id, company_id=company.id, title=raw["title"][:300], company=raw["company"][:300],
         location=raw.get("location"), source=raw["source"], source_url=raw.get("source_url"),
         application_url=raw.get("application_url") or raw.get("source_url"), company_url=raw.get("company_url"),
-        posted_at=raw.get("posted_at"), original_description=info["text"],
+        posted_at=raw.get("posted_at"), original_description=info["text"], last_seen_at=now(),
+        agency=agency.name if agency else None,
     )
     apply_parsed_info(job, info)
     db.add(job)
@@ -95,6 +101,8 @@ def apply_parsed_info(job: Job, info: dict) -> None:
                   "visa_status", "language_requirement", "risk_flags", "description_incomplete", "parsed"):
         setattr(job, field, info[field])
     job.skills_text = "," + ",".join(s["skill"].lower() for s in info["parsed"]["skills"]) + ","
+    if info["parsed"].get("deadline") and job.deadline is None:  # a deadline you typed yourself wins
+        job.deadline = date.fromisoformat(info["parsed"]["deadline"])
 
 
 def score(db: Session, job: Job, profile: Profile) -> Score:
@@ -116,6 +124,17 @@ def latest_score(db: Session, job: Job) -> Score | None:
     return db.query(Score).filter_by(job_id=job.id).order_by(Score.id.desc()).first()
 
 
+def record_source(db: Session, user_id: int, source: str, error: str | None = None, blocked: bool = False) -> None:
+    """Source health: remember when a source was searched and whether it worked (Source health page)."""
+    row = db.query(SourceStatus).filter_by(user_id=user_id, source=source).first()
+    if row is None:
+        row = SourceStatus(user_id=user_id, source=source)
+        db.add(row)
+    row.last_checked_at, row.last_error, row.blocked = now(), error, blocked
+    if error is None:
+        row.last_ok_at = now()
+
+
 def search_now(db: Session, profile: Profile, source_names: list[str], queries: list[str]) -> dict:
     """Run every query on every source once. Used by the 'Search now' button."""
     summary = {"found": 0, "new": 0, "duplicates": 0, "errors": []}
@@ -126,7 +145,10 @@ def search_now(db: Session, profile: Profile, source_names: list[str], queries: 
                 raws = search(source_name, query, s)
             except SourceBlocked as exc:
                 summary["errors"].append(str(exc))
+                record_source(db, profile.user_id, source_name, str(exc), blocked=True)
+                db.commit()
                 break
+            record_source(db, profile.user_id, source_name)
             for raw in raws:
                 summary["found"] += 1
                 job, outcome, _ = save_job(db, profile.user_id, raw)
@@ -167,10 +189,15 @@ def search_step(db: Session, profile: Profile, cursor: int, seconds: float, bloc
         except SourceBlocked as exc:
             blocked.append(source)
             out["errors"].append(str(exc))
+            record_source(db, profile.user_id, source, str(exc), blocked=True)
+            db.commit()
             continue
         except Exception as exc:  # one broken source must not stop the search
             out["errors"].append(f"{source} failed: {exc}")
+            record_source(db, profile.user_id, source, f"{source} failed: {exc}")
+            db.commit()
             continue
+        record_source(db, profile.user_id, source)
         for raw in raws:
             out["found"] += 1
             job, outcome, why = save_job(db, profile.user_id, raw)

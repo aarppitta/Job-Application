@@ -86,7 +86,7 @@ def test_strong_match_is_apply_and_honest():
     result = score_job(arpita(), job_from("SCADA Software Developer", SCADA_JD))
     assert result["overall"] >= 85 and result["recommendation"] == "APPLY"
     assert any("3+ years" in c for c in result["concerns"])       # 2.5 vs 3 years is flagged
-    assert "PostgreSQL" in result["missing_skills"]                 # MySQL is only "similar"
+    assert "Kubernetes" in result["missing_skills"] and "PostgreSQL" not in result["missing_skills"]   # PostgreSQL: Job Application project
 
 
 def test_german_required_and_unlikely_sponsorship_are_not_apply():
@@ -167,3 +167,26 @@ def test_hindi_learning_links():
     assert docker[-1]["channel"] == "YouTube search" and "Hindi" in docker[-1]["url"]
     assert [l["channel"] for l in hindi_videos("OPC UA")] == ["YouTube search"]        # no verified channel -> only a search
     assert all(c in CHANNELS for s in ("FastAPI", "PostgreSQL", "DSA", "React") for c in [l["channel"] for l in hindi_videos(s)][:-1])
+
+
+def test_workday_country_filter_and_company_names():
+    from app.sources import _germany_facet, company_name
+    flat = [{"facetParameter": "Country", "values": [{"descriptor": "India", "id": "in"}, {"descriptor": "Germany", "id": "de"}]}]
+    nested = [{"facetParameter": "locationMainGroup", "values": [{"facetParameter": "locationHierarchy1",
+                                                                  "values": [{"descriptor": "Germany", "id": "x1"}]}]}]
+    assert _germany_facet(flat) == ("Country", "de")
+    assert _germany_facet(nested) == ("locationHierarchy1", "x1")            # NVIDIA nests it one level deeper
+    assert _germany_facet([{"facetParameter": "Country", "values": [{"descriptor": "France", "id": "fr"}]}]) is None
+    assert company_name("DE01 NVIDIA Germany") == "NVIDIA Germany"
+    assert company_name("Amazon Web Services Development Center Germany GmbH - R28") == "Amazon Web Services Development Center Germany GmbH"
+
+
+def test_deadline_and_closed_page_detection():
+    from app.logic.jd_parser import find_deadline
+    from app.services.freshness import GONE
+    assert find_deadline("Application deadline: 15.11.2026. We look forward") == "2026-11-15"
+    assert find_deadline("Bewerbungsfrist: 30. November 2026") == "2026-11-30"
+    assert find_deadline("Please apply by November 30, 2026.") == "2026-11-30"
+    assert find_deadline("We review applications continuously.") is None
+    assert GONE.search("Sorry, this job is no longer available.") and GONE.search("Die Stelle ist bereits besetzt")
+    assert not GONE.search("The position will be filled as soon as possible. Apply now!")

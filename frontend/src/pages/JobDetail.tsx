@@ -15,6 +15,34 @@ import {
 } from "../components/ui";
 import type { JobDetails } from "../types";
 import { useFetch } from "../useFetch";
+import { SaveButton } from "./Jobs";
+
+/** Source + freshness line: where it was listed, when we last saw / checked it, and the deadline (editable). */
+function Freshness({ job, onChange }: { job: JobDetails; onChange: () => void }) {
+  const [editing, setEditing] = useState(false);
+  async function setDeadline(value: string) {
+    await api(`/api/jobs/${job.id}`, { method: "PATCH", body: { deadline: value || null } });
+    setEditing(false);
+    onChange();
+  }
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+      <span>Source: {job.source}{job.last_seen_at && ` · listed ${formatDate(job.last_seen_at)}`}</span>
+      {job.agency && <Link to="/agencies" className="font-medium text-amber-700 hover:underline">Advertised by recruiter {job.agency}</Link>}
+      <span>{job.checked_at ? `Page checked ${formatDate(job.checked_at)}` : "Page not re-checked yet"}</span>
+      {editing ? (
+        <label className="inline-flex items-center gap-1.5">Deadline
+          <input type="date" autoFocus defaultValue={job.deadline ?? ""} className={`${inputClass} h-7 w-36 py-0 text-xs`}
+            onBlur={(e) => setDeadline(e.target.value)} onKeyDown={(e) => e.key === "Enter" && setDeadline((e.target as HTMLInputElement).value)} />
+        </label>
+      ) : (
+        <button className="inline-flex items-center gap-1 hover:text-primary" onClick={() => setEditing(true)} title="Set or change the application deadline">
+          <CalendarDays className="size-3.5" aria-hidden />{job.deadline ? <b className="text-warn">Apply by {formatDate(job.deadline)}</b> : "Add deadline"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const TABS = [
   { id: "overview", label: "Overview" }, { id: "match", label: "Match & gaps" }, { id: "interview", label: "Interview" },
@@ -28,7 +56,6 @@ export default function JobDetail() {
   const [tab, setTab] = useState("overview");
   const [letter, setLetter] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [version, setVersion] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -46,13 +73,12 @@ export default function JobDetail() {
 
   if (error) return <ErrorText error={error} />;
   if (!job || !a) return <SkeletonPage />;
-  const cvVersion = version ?? a.application?.cv_version ?? a.cv_plan.cv_version;
   const file = (kind: string) => `${kind}_${job.company.replace(/\W+/g, "_")}.docx`;
   const refresh = () => { reload(); reloadAnalysis(); };
 
   const markApplied = () =>
     act("applied", async () => {
-      await api(`/api/jobs/${id}/applied`, { body: { cover_letter: letter, cv_version: cvVersion } });
+      await api(`/api/jobs/${id}/applied`, { body: { cover_letter: letter } });
       refresh();
     });
 
@@ -75,6 +101,7 @@ export default function JobDetail() {
                 <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />Posted {formatDate(job.posted_at ?? job.discovered_at)}</span>
                 <span>{a.role_family}</span>
               </div>
+              <Freshness job={job} onChange={reload} />
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {job.application_id ? <StatusBadge status={job.application_status ?? "APPLIED"} /> : <MatchLabel match={job.match} />}
                 <Visa status={job.visa_status} />
@@ -82,7 +109,7 @@ export default function JobDetail() {
               </div>
             </div>
           </div>
-          <div className="shrink-0"><ScoreRing value={a.scores.overall} size={88} label /></div>
+          <div className="flex shrink-0 items-start gap-2"><SaveButton job={job} onChange={reload} /><ScoreRing value={a.scores.overall} size={88} label /></div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2 border-t border-line pt-5">
           {job.application_url && (
@@ -101,6 +128,15 @@ export default function JobDetail() {
       </section>
 
       {job.status === "RISK" && <Notice tone="warn" icon={ShieldAlert}><b>Possible scam:</b> {job.risk_flags.join(", ")}</Notice>}
+      {job.closed_at && (
+        <Notice tone="warn" icon={TriangleAlert}>
+          <b>This job looks closed</b> (checked {formatDate(job.closed_at)}: the page is gone or says the position is filled). It is hidden
+          from your lists and the apply bot skips it.{" "}
+          <button className="font-medium text-primary underline" onClick={async () => { await api(`/api/jobs/${id}`, { method: "PATCH", body: { reopen: true } }); reload(); }}>
+            It is still open
+          </button>
+        </Notice>
+      )}
 
       <Decision rec={a.recommendation} />
 
@@ -112,7 +148,7 @@ export default function JobDetail() {
       {tab === "interview" && <InterviewTab a={a} jobId={id!} onResearched={reloadAnalysis} />}
       {tab === "cv" && (
         <CvTab a={a} jobId={id!} busy={busy} act={act} letter={letter} setLetter={setLetter} warnings={warnings} setWarnings={setWarnings}
-          cvVersion={cvVersion} setVersion={setVersion} file={file} />
+          file={file} />
       )}
       {tab === "outreach" && <OutreachTab a={a} jobId={id!} onChange={reloadAnalysis} />}
       {tab === "jd" && <DescriptionTab job={job} jobId={id!} />}
@@ -279,7 +315,7 @@ function InterviewTab({ a, jobId, onResearched }: { a: any; jobId: string; onRes
         <ErrorText error={error} />
         {!a.ai_available && (
           <Notice tone="ai" icon={Sparkles}>
-            Research needs Claude: add <code className="rounded bg-white px-1">AI_API_KEY</code> to the <code className="rounded bg-white px-1">.env</code> file and restart the backend.
+            Research needs AI: add <code className="rounded bg-white px-1">AI_API_KEY</code> to the <code className="rounded bg-white px-1">.env</code> file and restart the backend.
             Until then, everything below is estimated from the JD and the company type (and labelled so).
           </Notice>
         )}
@@ -351,22 +387,16 @@ function InterviewTab({ a, jobId, onResearched }: { a: any; jobId: string; onRes
 
 // ------------------------------------------------------------------ CV & ATS
 
-function CvTab({ a, jobId, busy, act, letter, setLetter, warnings, setWarnings, cvVersion, setVersion, file }: any) {
-  const { data: versions } = useFetch<any[]>("/api/cv-versions");
+function CvTab({ a, jobId, busy, act, letter, setLetter, warnings, setWarnings, file }: any) {
   const plan = a.cv_plan;
   const ats = a.ats;
   return (
     <div className="space-y-5">
-      <Card ai title="Your application documents" subtitle="Built only from facts on your CV: reordered for this JD, nothing added" icon={Sparkles}>
-        <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_1fr] md:items-end">
-          <Field label="CV version" hint={`Recommended: ${plan.cv_version} · ${plan.cv_version_why}`}>
-            <select className={inputClass} value={cvVersion} onChange={(e) => setVersion(e.target.value)}>
-              {(versions ?? []).map((v) => <option key={v.code} value={v.code}>{v.code} · {v.name}{v.code === plan.cv_version ? " (recommended)" : ""}</option>)}
-            </select>
-          </Field>
+      <Card ai title="Your application documents" subtitle="One standard CV for every application; the cover letter is written for this job from your CV" icon={Sparkles}>
+        <div>
           <div className="flex flex-wrap gap-2">
             <Button kind="ai" icon={Download} loading={busy === "cv"} disabled={!!busy}
-              onClick={() => act("cv", () => download(`/api/jobs/${jobId}/cv.docx?version=${cvVersion}`, file("CV")))}>Tailored CV (.docx)</Button>
+              onClick={() => act("cv", () => download(`/api/jobs/${jobId}/cv.docx`, "CV.docx"))}>Standard CV (.docx)</Button>
             <Button icon={PenLine} loading={busy === "letter"} disabled={!!busy} onClick={() => act("letter", async () => {
               const r = await api(`/api/jobs/${jobId}/cover-letter`, { method: "POST" });
               setLetter(r.text);
@@ -399,7 +429,7 @@ function CvTab({ a, jobId, busy, act, letter, setLetter, warnings, setWarnings, 
           {ats.must_not_add.length ? <ul className="space-y-1 text-sm">{ats.must_not_add.map((k: any) => <li key={k.keyword}><b>{k.keyword}</b>: <span className="text-muted">{k.how}</span></li>)}</ul>
             : <p className="text-sm text-muted">None.</p>}
         </Card>
-        <Card title="CV optimization plan" subtitle="Order and emphasis only: never invent experience" icon={ClipboardCheck}>
+        <Card title="What this job looks for" subtitle="Ideas for your next standard-CV update (applies to every job): never invent experience" icon={ClipboardCheck}>
           <dl className="space-y-3 text-sm">
             <div><dt className="font-semibold">Skills to list first</dt><dd className="text-muted">{plan.skills_first.join(", ") || "–"}</dd></div>
             <div><dt className="font-semibold">Projects to emphasize</dt><dd className="text-muted">{plan.emphasize_projects.join(" · ") || "–"}</dd></div>

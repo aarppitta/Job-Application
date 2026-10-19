@@ -22,7 +22,7 @@ import httpx
 
 from app.logic.jd_parser import detect_country, simplify
 
-USER_AGENT = "GermanyJobAutomation/1.0 (personal job search)"
+USER_AGENT = "JobApplication/1.0 (personal job search)"
 
 
 class SourceBlocked(Exception):
@@ -34,25 +34,26 @@ _cache: dict[str, tuple[float, httpx.Response | None]] = {}
 CACHE_SECONDS = 20 * 60  # a company's job list is downloaded at most every 20 minutes
 
 
-def get_cached(source: str, url: str, params: dict | None = None) -> httpx.Response | None:
+def get_cached(source: str, url: str, params: dict | None = None, json_body: dict | None = None) -> httpx.Response | None:
     """Same as get(), but reuses the answer for 20 minutes (one download per company, not one per keyword)."""
-    key = url + str(sorted((params or {}).items()))
+    key = url + str(sorted((params or {}).items())) + json.dumps(json_body, sort_keys=True)
     if key in _cache and time.monotonic() - _cache[key][0] < CACHE_SECONDS:
         return _cache[key][1]
-    response = get(source, url, params)
+    response = get(source, url, params, json_body)
     _cache[key] = (time.monotonic(), response)
     return response
 
 
-def get(source: str, url: str, params: dict | None = None) -> httpx.Response | None:
-    """Polite GET. Returns None if the page does not exist or keeps failing."""
+def get(source: str, url: str, params: dict | None = None, json_body: dict | None = None) -> httpx.Response | None:
+    """Polite GET (POST when json_body is given: some job APIs search by POST). None if missing or keeps failing."""
     for attempt in range(4):
         wait = 1.0 - (time.monotonic() - _last_request.get(source, 0))
         if wait > 0:
             time.sleep(wait)
         _last_request[source] = time.monotonic()
         try:
-            r = httpx.get(url, params=params, timeout=40, follow_redirects=True, headers={"User-Agent": USER_AGENT})
+            r = httpx.request("POST" if json_body is not None else "GET", url, params=params, json=json_body, timeout=40,
+                              follow_redirects=True, headers={"User-Agent": USER_AGENT})
         except httpx.HTTPError:
             time.sleep(2 ** attempt)
             continue
@@ -216,6 +217,81 @@ def ashby(query: str, boards: list[str]) -> list[dict]:
                     "source_url": j.get("jobUrl"), "application_url": j.get("applyUrl") or j.get("jobUrl"),
                     "posted_at": parse_date(j.get("publishedAt")),
                 })
+    return jobs
+
+
+# ------------------------------------------------------------------ Workday (big companies' own career sites)
+
+
+def _germany_facet(facets: list) -> tuple[str, str] | None:
+    """Workday's country filter: (facet parameter, id of "Germany"). Its name differs per company; some nest it."""
+    for facet in facets or []:
+        for value in facet.get("values", []):
+            if value.get("descriptor") in ("Germany", "Deutschland") and "id" in value:
+                return facet["facetParameter"], value["id"]
+            found = _germany_facet([value]) if "values" in value else None
+            if found:
+                return found
+    return None
+
+
+def company_name(legal: str) -> str:
+    """'DE01 NVIDIA Germany' / 'Amazon Web Services ... GmbH - R28' → without the internal entity codes."""
+    return re.sub(r"\s+-\s+R\d+$", "", re.sub(r"^[A-Z]{2}\d{2,3}\s+", "", legal.strip()))
+
+
+def workday(query: str, sites: list[str]) -> list[dict]:
+    """<host>/<tenant>/<site>, e.g. db.wd3.myworkdayjobs.com/db/DBWebSite: the public JSON behind the company's own
+    Workday careers page (robots.txt allows the site; checked 2026-10-19). Only jobs in Germany (Workday's country
+    filter), the first 20 search results per keyword; job details are read only for titles that match."""
+    jobs = []
+    for site in sites:
+        host, tenant, name = site.split("/")
+        base = f"https://{host}/wday/cxs/{tenant}/{name}"
+        r = get_cached("workday", f"{base}/jobs", json_body={"appliedFacets": {}, "limit": 1, "offset": 0, "searchText": ""})
+        germany = _germany_facet(r.json().get("facets")) if r else None
+        if not germany:
+            continue  # no jobs in Germany right now
+        r = get_cached("workday", f"{base}/jobs", json_body={"appliedFacets": {germany[0]: [germany[1]]}, "limit": 20, "offset": 0,
+                                                             "searchText": "" if query == "*" else query})
+        for posting in (r.json().get("jobPostings", []) if r else []):
+            if not matches(query, posting.get("title", ""), posting.get("title", "")):
+                continue  # title check first, so we don't open every job
+            detail = get_cached("workday", base + posting["externalPath"])
+            info = (detail.json() if detail else {}).get("jobPostingInfo") or {}
+            if not info or not matches(query, info.get("title", ""), info.get("jobDescription", "")):
+                continue
+            places = [info.get("location") or posting.get("locationsText") or ""] + list(info.get("additionalLocations") or [])
+            location = next((p for p in places if in_germany(p)), f"{places[0]}, Germany")  # the country filter said Germany
+            url = info.get("externalUrl") or f"https://{host}/{name}{posting['externalPath']}"
+            jobs.append({
+                "source": "workday", "title": info["title"],
+                "company": company_name((detail.json().get("hiringOrganization") or {}).get("name") or tenant),
+                "description": info.get("jobDescription", ""), "location": location,
+                "source_url": url, "application_url": url, "posted_at": parse_date(info.get("startDate")),
+            })
+    return jobs
+
+
+# ------------------------------------------------------------------ Amazon
+
+
+def amazon(query: str, _companies: list[str]) -> list[dict]:
+    """amazon.jobs search JSON (the API behind their careers site; robots.txt allows it). Jobs in Germany only."""
+    r = get_cached("amazon", "https://www.amazon.jobs/en/search.json",
+                   {"normalized_country_code[]": "DEU", "base_query": "" if query == "*" else query, "result_limit": 50, "sort": "recent"})
+    jobs = []
+    for j in (r.json().get("jobs", []) if r else []):
+        description = "\n".join(f"<h3>{head}</h3>{j.get(key) or ''}" for head, key in (
+            ("Description", "description"), ("Basic qualifications", "basic_qualifications"), ("Preferred qualifications", "preferred_qualifications")))
+        if matches(query, j.get("title", ""), description):
+            url = "https://www.amazon.jobs" + j["job_path"]
+            jobs.append({
+                "source": "amazon", "title": j["title"], "company": company_name(j.get("company_name") or "Amazon"),
+                "description": description, "location": j.get("normalized_location", "").replace(", DEU", ", Germany"),
+                "source_url": url, "application_url": url,
+                "posted_at": parse_date(datetime.strptime(" ".join(j["posted_date"].split()), "%B %d, %Y").date().isoformat()) if j.get("posted_date") else None,
+            })
     return jobs
 
 
@@ -400,6 +476,8 @@ SOURCES = {
     "smartrecruiters": (smartrecruiters, "smartrecruiters_companies"),
     "personio": (personio, "personio_companies"),
     "ashby": (ashby, "ashby_boards"),
+    "workday": (workday, "workday_sites"),
+    "amazon": (amazon, None),
     "arbeitnow": (arbeitnow, None),
     "berlinstartupjobs": (berlinstartupjobs, None),
     "munichstartup": (munichstartup, None),

@@ -26,10 +26,12 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas p-4">
-      <div className="w-full max-w-sm animate-fade-in">
+    <div className="flex min-h-screen items-center justify-center bg-brand p-4">
+      <div className="pointer-events-none fixed -left-24 -top-24 size-96 rounded-full bg-teal-200/50 blur-3xl" aria-hidden />
+      <div className="pointer-events-none fixed -bottom-32 -right-24 size-[28rem] rounded-full bg-rose-200/50 blur-3xl" aria-hidden />
+      <div className="relative w-full max-w-sm animate-fade-in">
         <div className="mb-6 flex justify-center"><Logo /></div>
-        <form onSubmit={submit} className="space-y-4 rounded-card border border-line bg-surface p-6 shadow-card sm:p-7">
+        <form onSubmit={submit} className="space-y-4 rounded-card border border-white bg-surface/90 p-6 shadow-xl shadow-teal-900/10 backdrop-blur sm:p-7">
           <div>
             <h1 className="text-xl font-bold tracking-tight">Welcome back</h1>
             <p className="mt-1 text-sm text-muted">Log in to manage your job search.</p>

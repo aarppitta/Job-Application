@@ -100,7 +100,7 @@ export default function Settings() {
         </p>
       </Card>
 
-      <Card title="My profile" subtitle="Used for the score, tailored CV and cover letter" icon={UserRound}
+      <Card title="My profile" subtitle="Used for the score, standard CV and cover letter" icon={UserRound}
         right={<Button kind="primary" icon={Save} loading={busy === "profile"} onClick={() => save("profile")}>Save profile</Button>}>
         {p.missing_facts.length > 0 && <div className="mb-4"><Notice tone="warn" icon={TriangleAlert}>Still missing: {p.missing_facts.join(", ")}</Notice></div>}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -193,12 +193,13 @@ export default function Settings() {
       <Card title="Where to search" subtitle="Sources and the companies whose careers pages are read" icon={Globe}
         right={<Button kind="primary" icon={Save} loading={busy === "where"} onClick={() => save("settings", "where")}>Save</Button>}>
         <div className="grid gap-4 md:grid-cols-2">
-          {list("sources", "Automatic sources (greenhouse, lever, smartrecruiters, personio, ashby, arbeitnow, berlinstartupjobs, munichstartup, startupcityhamburg, demo)")}
+          {list("sources", "Automatic sources (greenhouse, lever, smartrecruiters, personio, ashby, workday, amazon, arbeitnow, berlinstartupjobs, munichstartup, startupcityhamburg, demo)")}
           {list("greenhouse_boards", "Greenhouse companies (boards.greenhouse.io/NAME)")}
           {list("lever_companies", "Lever companies (jobs.lever.co/NAME)")}
           {list("smartrecruiters_companies", "SmartRecruiters companies (jobs.smartrecruiters.com/NAME)")}
           {list("personio_companies", "Personio companies (NAME.jobs.personio.de)")}
           {list("ashby_boards", "Ashby companies (jobs.ashbyhq.com/NAME)")}
+          {list("workday_sites", "Workday career sites (HOST/TENANT/SITE, e.g. db.wd3.myworkdayjobs.com/db/DBWebSite)")}
         </div>
       </Card>
     </div>

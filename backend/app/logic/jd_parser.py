@@ -7,6 +7,7 @@ import hashlib
 import html
 import re
 import unicodedata
+from datetime import date
 from html.parser import HTMLParser
 
 from app.logic.skills import find_skills
@@ -332,6 +333,32 @@ def detect_risks(text: str, application_url: str | None = None) -> list[str]:
 # ------------------------------------------------------------------ everything together
 
 
+MONTH_NAMES = {name: i % 12 + 1 for i, name in enumerate(
+    "january february march april may june july august september october november december "
+    "januar februar märz april mai juni juli august september oktober november dezember".split())}
+DEADLINE = re.compile(r"(?:application deadline|closing date|apply (?:by|before|until)|deadline|bewerbungsfrist|bewerbungsschluss"
+                      r"|bewerbung(?:en)? bis(?: zum)?|bewerben sie sich bis(?: zum)?)\s*(?:is|ist|:|-)?\s*"
+                      r"(?:(\d{1,2})[./](\d{1,2})[./](\d{2,4})|(\d{1,2})\.?\s+([a-zä]+)\s+(\d{4})|([a-z]+)\s+(\d{1,2}),?\s+(\d{4}))", re.I)
+
+
+def find_deadline(text: str) -> str | None:
+    """'Application deadline: 15.11.2026' / 'Bewerbungsfrist 30. November 2026' / 'apply by November 30, 2026' → '2026-11-30'."""
+    m = DEADLINE.search(text)
+    if not m:
+        return None
+    g = m.groups()
+    try:
+        if g[0]:
+            day, month, year = int(g[0]), int(g[1]), int(g[2])
+        elif g[3]:
+            day, month, year = int(g[3]), MONTH_NAMES[g[4].lower()], int(g[5])
+        else:
+            day, month, year = int(g[7]), MONTH_NAMES[g[6].lower()], int(g[8])
+        return date(year + 2000 if year < 100 else year, month, day).isoformat()
+    except (KeyError, ValueError):
+        return None
+
+
 def parse_job(title: str, description: str, location: str | None, application_url: str | None = None) -> dict:
     """Run every extractor. Returns a dict that is stored on the Job row."""
     text = html_to_text(description)
@@ -362,5 +389,6 @@ def parse_job(title: str, description: str, location: str | None, application_ur
             "visa_evidence": visa_evidence,
             "language_evidence": language_evidence,
             "industrial_signals": industrial_signals(f"{title}\n{text}"),
+            "deadline": find_deadline(text),
         },
     }

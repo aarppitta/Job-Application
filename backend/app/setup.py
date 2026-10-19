@@ -2,8 +2,9 @@
 from app.auth import check_password, hash_password
 from app.config import settings
 from app.database import SessionLocal
+from app.data.recruitment_companies import RECRUITMENT_COMPANIES
 from app.defaults import starting_profile
-from app.models import Profile, User
+from app.models import Profile, RecruitmentCompany, User
 
 
 def ensure_master_user() -> None:
@@ -27,4 +28,7 @@ def ensure_master_user() -> None:
             if any("bullets" not in p for p in profile.projects or []):
                 profile.projects = starting_profile()["projects"]
 
+        # Recruitment directory: add companies from the list that this user does not have yet (never overwrites your data).
+        have = {seed for (seed,) in db.query(RecruitmentCompany.seed_id).filter_by(user_id=user.id)}
+        db.add_all(RecruitmentCompany(user_id=user.id, **row) for row in RECRUITMENT_COMPANIES if row["seed_id"] not in have)
         db.commit()

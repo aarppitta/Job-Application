@@ -146,7 +146,7 @@ function MockInterview({ jobId, pkg }: { jobId: string; pkg: any }) {
     return (
       <Card ai title="Mock interview" subtitle="10 likely questions for this job, one at a time. Answer as you would out loud." icon={Mic}>
         {!pkg.ai_available && (
-          <Notice tone="ai" icon={Sparkles}>Claude is not configured, so you grade yourself against the ideal answer structure.
+          <Notice tone="ai" icon={Sparkles}>AI is not configured, so you grade yourself against the ideal answer structure.
             Add <code className="rounded bg-white px-1">AI_API_KEY</code> to <code className="rounded bg-white px-1">.env</code> for real grading (accuracy, communication, structure…).</Notice>
         )}
         <p className="mb-2 mt-4 text-sm font-medium">Focus (optional)</p>
@@ -218,7 +218,7 @@ function MockInterview({ jobId, pkg }: { jobId: string; pkg: any }) {
 function Feedback({ a }: { a: any }) {
   const g = a.grade;
   return (
-    <Card title={`Feedback · ${g.overall ?? "–"}/100`} subtitle={g.by === "claude" ? "Graded by Claude" : "Self-rated"} icon={Lightbulb}>
+    <Card title={`Feedback · ${g.overall ?? "–"}/100`} subtitle={g.by === "claude" ? "Graded by AI" : "Self-rated"} icon={Lightbulb}>
       <p className="mb-3 text-sm text-muted">Q: {a.question}</p>
       {Object.keys(g.scores ?? {}).length > 0 && <div className="mb-4"><ScoreBars parts={Object.fromEntries(Object.entries(g.scores).map(([k, v]) => [SCORE_NAMES[k] ?? k, v as number]))} /></div>}
       <div className="grid gap-4 text-sm md:grid-cols-2">

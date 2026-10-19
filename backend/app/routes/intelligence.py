@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.auth import current_profile
 from app.config import settings as app_config
 from app.database import get_db
-from app.defaults import CV_VERSIONS, user_settings
+from app.defaults import user_settings
 from app.logic import ai, market, outreach
 from app.logic.analysis import analyze_job
 from app.logic.dedup import company_key
@@ -78,7 +78,7 @@ def analysis(job_id: int, profile: Profile = Depends(current_profile), db: Sessi
 
 @router.post("/jobs/{job_id}/research")
 def research(job_id: int, refresh: bool = False, profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
-    """Company + interview-process research with Claude web search (cached 30 days per company)."""
+    """Company + interview-process research with AI web search (cached 30 days per company)."""
     job = get_job(db, profile, job_id)
     existing = research_for(db, profile, job)
     if existing and not refresh and now() - existing.created_at < RESEARCH_MAX_AGE:
@@ -175,7 +175,7 @@ def get_session(db: Session, profile: Profile, session_id: int) -> MockSession:
 
 class MockAnswer(BaseModel):
     answer: str = Field(min_length=1, max_length=8000)
-    self_score: int | None = Field(default=None, ge=0, le=100)   # used when Claude is not configured
+    self_score: int | None = Field(default=None, ge=0, le=100)   # used when AI is not configured
 
 
 @router.post("/mock/{session_id}/answer")
@@ -198,7 +198,7 @@ def mock_answer(session_id: int, body: MockAnswer, profile: Profile = Depends(cu
     else:
         grade = {"by": "self", "overall": body.self_score, "scores": {}, "good": [], "missing": [], "improve": [],
                  "ideal_structure": structure, "invented_claims": [],
-                 "note": "Claude is not configured: compare your answer with the ideal structure and rate yourself."}
+                 "note": "AI is not configured: compare your answer with the ideal structure and rate yourself."}
     s.answers = [*s.answers, {"question": q["question"], "category": q["category"], "answer": body.answer, "grade": grade}]
     db.commit()
     return mock_dict(s)
@@ -349,9 +349,3 @@ def follow_ups_due(db: Session, profile: Profile, apps: list[Application]) -> li
             if item.get("overdue"):
                 out.append({**item, "job_id": job.id, "job": f"{job.title} · {job.company}"})
     return out[:10]
-
-
-@router.get("/cv-versions")
-def cv_versions(profile: Profile = Depends(current_profile)):
-    return [{"code": code, **{k: v for k, v in info.items() if k != "focus"}, "focus": info["focus"]} for code, info in CV_VERSIONS.items()]
-

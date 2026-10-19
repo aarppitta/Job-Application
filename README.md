@@ -1,8 +1,11 @@
-# Germany Job Automation
+# Job Application
 
-Finds Germany-based software and industrial jobs by your keywords, saves every job description, scores each job against your CV, and gives you a **tailored CV** and **cover letter** for any job with one click. You apply on the company site, click **Mark as applied**, and the app keeps what you sent and tracks the status.
+Finds software and industrial jobs in Germany by your keywords (official job APIs of 75+ company career sites, incl.
+Workday and Amazon, plus public job feeds), saves every job description, scores each job against your CV, and gives you
+**one standard CV** (German/EU format) and a **cover letter** for any job. You apply on the company site, click
+**Mark as applied**, and the app keeps what you sent and tracks the status (table, board and calendar).
+A **Recruitment companies** directory (50 recruiters) tracks your contact with each recruiter and the jobs they advertise.
 
-Project notes for Claude (file map, rules, change log): [`../CLAUDE.md`](../CLAUDE.md)
 
 ## Run
 
@@ -16,11 +19,15 @@ Don't use plain `uvicorn …`; it may use the system Python and crash with `No m
 
 ## Use
 
-1. **Settings**: fill in email, phone and whether you need visa sponsorship.
-2. **Automation → START**: searches your keywords at the followed companies for up to 6 hours, saves and scores every job.
-3. **Jobs → Top Matches**: open a job, then use the buttons **Tailored CV** and **Cover letter**.
+1. **Settings**: fill in email, phone and whether you need visa sponsorship. **My CV**: check or edit your CV (or upload a PDF/Word CV).
+2. **Automation → START** (or **Jobs → Search now**): searches your keywords at the followed companies, saves and scores every job.
+   **Jobs → Source health** shows when each source was searched and whether it worked; closed jobs are hidden automatically.
+3. **Jobs**: open a job, then use **Standard CV** and **Cover letter**. Save jobs and filter sets; add deadlines.
 4. Apply on the company site (**Open job to apply**), then click **Mark as applied**.
-5. **Applications**: update the status (Interview, Offer, Rejected…) and download the CV and letter you sent.
+5. **Applications**: status (Interview, Offer, Rejected…), interview dates, board and calendar views, the CV and letter you sent.
+6. **Recruitment companies**: search and filter 50 recruiters, open their sites, keep your status / notes / follow-ups, and
+   mark India / visa / relocation support as confirmed only with a source link. Jobs they advertise are linked to them;
+   applying to one sets that recruiter to "Applied".
 
 Jobs found elsewhere (LinkedIn, Indeed…): **Jobs → Import job** and paste the description.
 
@@ -53,6 +60,17 @@ morning, 03:00–08:00 UTC = 08:30–13:30 IST; change the times in `vercel.json
 
 Limits on the free Hobby plan: one function call ≤ 300 s (handled by the steps), crons at most daily (hence 6 of them).
 On Pro you can run the cron more often (e.g. `*/30 * * * *`) and raise `STEP_SECONDS`.
+
+## Apply bot and CV files (on your Mac, not deployed)
+
+```bash
+backend/venv/bin/python applybot/standard_cv.py     # saves the standard CV as .docx/.pages/.pdf in ~/Desktop/Resume/Standard CV/
+backend/venv/bin/python applybot/apply.py           # dry run: fills application forms, submits nothing
+applybot/run_daily.sh                               # really apply (max 10 per run)
+backend/venv/bin/python applybot/sync_profile.py    # after a deploy: copy CV + search settings to the live app
+```
+They log in with `~/.job-automation/config.json`; personal facts (email, phone, salary, start date…) live in
+`~/.job-automation/answers.json`, never in the code.
 
 ## Tests
 

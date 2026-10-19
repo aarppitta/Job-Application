@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import create_tables
-from app.routes import applications, auth, automation, boards, dashboard, intelligence, jobs, profile, recruiters
+from app.routes import agencies, applications, auth, automation, boards, dashboard, intelligence, jobs, profile, recruiters
 from app.services.automation import stop_leftover_runs
 from app.services.scheduler import start_scheduler
 from app.setup import ensure_master_user
@@ -24,10 +24,10 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Germany Job Automation", lifespan=lifespan)
+app = FastAPI(title="Job Application", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["*"], allow_headers=["*"])
 
-for module in (auth, profile, jobs, applications, recruiters, boards, dashboard, automation, intelligence):
+for module in (auth, profile, jobs, applications, recruiters, agencies, boards, dashboard, automation, intelligence):
     app.include_router(module.router)
 app.include_router(automation.cron_router)
 

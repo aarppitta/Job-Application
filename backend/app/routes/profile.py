@@ -1,18 +1,24 @@
-"""Your profile (from your CV) and settings."""
+"""Your profile (from your CV), the standard CV file, and settings."""
+import base64
+import io
+
+from docx import Document
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import current_profile
 from app.database import get_db
 from app.defaults import DEFAULT_SETTINGS, user_settings
+from app.logic import ai
+from app.logic.cv import docx_response, standard_cv_docx
 from app.logic.skills import canonical_skill
 from app.models import Profile
 from app.serialize import to_dict
 
 router = APIRouter(prefix="/api", tags=["profile"])
 
-# Facts not on the CV: email + phone go on the tailored CV, visa need is used by the score.
+# Facts not on the CV: email + phone go on the standard CV, visa need is used by the score.
 NEEDED_FACTS = {"email": "Email", "phone": "Phone", "visa_required": "Visa sponsorship needed?"}
 
 
@@ -37,6 +43,8 @@ class ProfileUpdate(BaseModel):
     target_roles: list[str] | None = None
     skills: list[dict] | None = None        # [{"name": "Python", "years": 2.5}]
     languages: list[dict] | None = None
+    experience: list[dict] | None = None    # [{"company", "location", "role", "dates", "bullets": [...]}]
+    projects: list[dict] | None = None      # [{"name", "tech", "description", "skills", "bullets"}]
     visa_required: bool | None = None
 
 
@@ -60,6 +68,53 @@ def update_profile(body: ProfileUpdate, profile: Profile = Depends(current_profi
         setattr(profile, field, value)
     db.commit()
     return profile_dict(profile)
+
+
+class CvFile(BaseModel):
+    filename: str
+    content_base64: str = Field(max_length=14_000_000)  # ≈ 10 MB file
+
+
+def cv_text(filename: str, data: bytes) -> str:
+    """Plain text of a PDF or Word CV (tables included, e.g. the date column)."""
+    if filename.lower().endswith(".pdf"):
+        from pypdf import PdfReader
+        return "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(data)).pages)
+    if filename.lower().endswith(".docx"):
+        doc = Document(io.BytesIO(data))
+        cells = [p.text for t in doc.tables for row in t.rows for c in row.cells for p in c.paragraphs]
+        return "\n".join([p.text for p in doc.paragraphs] + cells)
+    raise HTTPException(422, "Upload a .pdf or .docx file.")
+
+
+@router.post("/profile/cv-import")
+def import_cv(body: CvFile, profile: Profile = Depends(current_profile)):
+    """Read an uploaded CV. Returns its text and, with AI configured, a DRAFT of the profile fields.
+    Nothing is saved here: you review the draft on the My CV page and click Save."""
+    try:
+        text = cv_text(body.filename, base64.b64decode(body.content_base64))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(422, "Could not read this file. Is it a normal (not scanned or password-protected) PDF or Word file?") from None
+    if len(text.strip()) < 200:
+        raise HTTPException(422, "Almost no text found in this file (a scanned image?). Paste your CV text instead.")
+    if not ai.available():
+        return {"text": text, "draft": None,
+                "message": "Text extracted. Reading it into the fields needs AI (AI_API_KEY in .env), so copy what you need into the fields below."}
+    try:
+        draft = ai.extract_cv(text)
+    except ai.AIError as exc:
+        return {"text": text, "draft": None, "message": str(exc)}
+    draft["education"] = [" | ".join(x for x in (e["degree"], e["school"], e["dates"]) if x) for e in draft["education"]]
+    draft["skills"] = [{"name": canonical_skill(s) or s, "years": None} for s in draft["skills"]]
+    return {"text": text, "draft": draft, "message": "AI read your CV into the fields below. Check every field, then Save."}
+
+
+@router.get("/cv.docx")
+def standard_cv(profile: Profile = Depends(current_profile)):
+    """The standard CV: the one file used for every application."""
+    return docx_response(standard_cv_docx(profile), profile, None, "CV")
 
 
 @router.get("/settings")

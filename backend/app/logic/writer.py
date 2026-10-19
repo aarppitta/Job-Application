@@ -2,13 +2,14 @@
 
 Golden rule: only facts from the profile (your CV) are used. Nothing is invented.
 
-If AI_API_KEY is set, Claude writes the cover letter instead of the template. Its text is
+If AI_API_KEY is set, AI writes the cover letter instead of the template. Its text is
 checked by `find_invented_claims()`; if it claims anything not in your profile, we fall
 back to the template.
 """
 import re
 
 from app.config import settings
+from app.logic.cv import degree_text
 from app.logic.skills import find_skills, with_implied
 
 INDUSTRIAL = {"SCADA", "WebSCADA", "OPC", "OPC UA", "Modbus", "FINS", "PLC", "MES", "IIoT", "HMI"}
@@ -57,7 +58,7 @@ def template_cover_letter(profile, job, matched: list[str]) -> str:
         lines += [f"The role's focus on {_join(matched[:5])} matches the technologies I use every day, "
                   f"and I would be glad to bring that experience to {job.company}.", ""]
     if profile.education:
-        lines += [f"I hold an {profile.education[0]}.", ""]
+        lines += [f"I hold an {degree_text(profile.education[0])}.", ""]
     if profile.visa_required is True:
         lines += ["I am currently based outside Germany and would require visa sponsorship.", ""]
     lines += ["I would welcome the opportunity to discuss how my background could contribute to your team.", "",
@@ -98,10 +99,10 @@ def cover_letter(profile, job, matched: list[str]) -> tuple[str, str, list[str]]
     try:
         text = _claude_cover_letter(profile, job, matched)
     except Exception as exc:  # network / API problem -> use the template
-        return template, "template", [f"Claude unavailable ({type(exc).__name__}); used the template."]
+        return template, "template", [f"AI unavailable ({type(exc).__name__}); used the template."]
     problems = find_invented_claims(text or "", profile, job)
     if not text or problems:
-        return template, "template", ["Claude's draft was rejected: " + "; ".join(problems or ["empty reply"])]
+        return template, "template", ["AI's draft was rejected: " + "; ".join(problems or ["empty reply"])]
     return text, "claude", []
 
 

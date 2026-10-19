@@ -34,28 +34,37 @@ L2 LineSync — WebSCADA System (Angular · FastAPI · Python · MySQL · PyInst
 - Recipe management: full CRUD for recipes, per-machine recipe assignment, and per-machine / per-recipe production reports.
 - User management: group-level and user-level CRUD, multi-tier RBAC (operator, supervisor, admin), configurable security policy, change-password functionality and feature-level access-rights control.
 - Machine registration and configuration: register machines, configure parameters, manage machine-level settings; settings module includes database backup and restore for administrators.
-- Digital signature functionality — users digitally sign off critical actions (recipe approvals, batch releases) with credentials that are cryptographically recorded, meeting 21 CFR Part 11 electronic signature requirements.
-- Audit module: tamper-evident log of all system and user actions, with electronic audit trails and data integrity controls for pharma and regulated manufacturing compliance.
-- Packaged the FastAPI backend as a standalone Windows executable using PyInstaller and registered it as a persistent background service via NSSM.
+- Digital signature functionality — users digitally sign off critical actions (recipe approvals, batch releases) with credentials that are cryptographically recorded, fully meeting 21 CFR Part 11 electronic signature requirements.
+- L2 LineSync audit module: tamper-evident log of all system and user actions, with electronic audit trails and data integrity controls for pharma and regulated manufacturing compliance.
+- Packaged the FastAPI backend as a standalone Windows executable using PyInstaller and registered it as a persistent background service via NSSM — enabling single-click deployment on production-floor machines with no Python environment dependency.
 
 OPC Server — Custom Industrial Data Gateway (Python · Django · MySQL · OPC-UA · Modbus TCP/RTU · FINS Serial · FINS Ethernet)
-- Engineered a fully custom Python OPC server from scratch as an open-source alternative to commercial OPC servers such as Kepware.
-- Pluggable, protocol-agnostic driver architecture with four production drivers: Modbus TCP/RTU, FINS Serial, FINS Ethernet and OPC-UA.
-- Reads live process data from PLCs and persists it into MySQL with a normalised schema supporting historical analysis, trend reporting and alarm logging.
+- Engineered a fully custom Python OPC server from scratch as a direct, open-source alternative to commercial OPC servers such as Kepware — delivering equivalent PLC connectivity and data acquisition capabilities at zero licensing cost.
+- Implemented a pluggable, protocol-agnostic driver architecture with four production drivers: Modbus TCP/RTU, FINS Serial, FINS Ethernet and OPC-UA — allowing new device types to be onboarded by adding a driver module without touching core server logic.
+- Reads live process data from PLCs through the driver layer and persists it into MySQL with a normalised schema supporting historical analysis, trend reporting and alarm logging.
 
 Pulse Connect — OPC-UA Tag Browser & Config Generator (Python · OPC-UA (asyncua) · Angular · FastAPI · MySQL)
-- Connects to an OPC-UA server, browses the tag namespace, and lets engineers classify tags as Process Tags or Alarm Tags through a guided UI.
-- Generates a structured config.ini file consumed directly by machine data-logging services.
-- Reduced commissioning time for new machines by letting non-specialist engineers configure data-logging end-to-end.
+- Full-stack industrial tool: connects to an OPC-UA server, browses the tag namespace, and lets engineers classify discovered tags as Process Tags or Alarm Tags through a guided UI — replacing a previously manual, error-prone process.
+- Generates a structured config.ini file from the selected tag configuration, consumed directly by machine data-logging services with no further manual editing.
+- Reduced commissioning time for new machines by enabling non-specialist engineers to configure data-logging end-to-end without editing raw configuration files.
 
 Pharma Processing Machine — Configuration Tool (Python · config.ini · Industrial Protocols · Pharma Manufacturing)
-- Python utility that generates config.ini files for pharma processing machines (IP addresses, database settings, trigger bits).
-- Validated configuration workflow deployed in a regulated pharma manufacturing environment.
+- Python utility that generates config.ini files for pharma processing machines — specifying IP addresses, database connection settings and trigger bits required for machine data-logging services to initialise correctly.
+- Eliminates manual INI file editing errors through a structured, validated configuration workflow; deployed in a regulated pharma manufacturing environment ahead of production runs.
 
-Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIEW · Zenon)
-- Angular-based SCADA application with real-time operator screens for compression machines.
-- Defined the data interface contract between the Angular frontend and the LabVIEW / Zenon backend layer.
-- Leading a junior developer on this project — component architecture, code review, integration testing and delivery planning.
+Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIEW · Industrial SCADA Software)
+- Angular-based SCADA application providing real-time operator screens for compression machines — machine status, process values, operator controls and parameter configuration.
+- Defined the data interface contract between the Angular frontend and the LabVIEW backend layer, ensuring reliable state synchronisation and clean separation of concerns.
+- Leading a junior developer on this project — component architecture, code review, integration testing approach and delivery planning.
+
+Job Application — Job Discovery & Application Tracking Platform (Python · FastAPI · SQLAlchemy · PostgreSQL · React · TypeScript · Tailwind CSS · Playwright · Vercel · Neon)
+- Built a full-stack platform that collects jobs in Germany from the official job APIs of 75+ company career sites (Greenhouse, Lever, SmartRecruiters, Personio, Ashby, Workday) and public job feeds, with rate limiting and source-health monitoring.
+- Implemented job normalisation, duplicate detection, version history for every job description, and freshness checks that hide closed postings.
+- Developed rule-based CV-to-job matching (0–100 score from 8 weighted criteria) with requirement-level skill-gap analysis and language / visa checks.
+- Built an application tracker (table, Kanban board, calendar) and a Word/PDF CV generator in German/EU format.
+- Automated form filling on company application pages with Playwright, using only verified profile facts and stopping at CAPTCHAs or unknown questions; deployed on Vercel with Neon PostgreSQL; 48 automated tests.
 
 EDUCATION
-MSc Computer Science, University of Greenwich, London
+MSc Computer Science — Greenwich University, London, United Kingdom | January 2022 – January 2023
+Masters in Computer Applications — Gujarat Technological University, Ahmedabad, India | December 2015 – January 2018
+Bachelor of Computer Applications — Gujarat University, Ahmedabad, India | December 2012 – April 2015

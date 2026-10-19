@@ -1,14 +1,15 @@
-// Jobs you applied to: the pipeline, application health, follow-ups. The CV and letter you sent are kept.
-import { ArrowUpDown, BellRing, CalendarDays, FileText, MapPin, Search, Send } from "lucide-react";
-import { useMemo, useState } from "react";
+// Jobs you applied to: the pipeline (table / board / calendar), application health, follow-ups, interview dates.
+// The CV and letter you sent are kept.
+import { ArrowUpDown, BellRing, CalendarClock, CalendarDays, Columns3, FileText, List, MapPin, Mic, Plus, Search, Send, X } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { api, download } from "../api";
 import {
-  Chip, CompanyAvatar, Empty, ErrorText, PageTitle, Score, SkeletonCard, StatusBadge, Table, buttonClass, formatDate, inputClass,
+  Button, Chip, CompanyAvatar, Empty, ErrorText, PageTitle, Score, SkeletonCard, StatusBadge, Table, buttonClass, formatDate, inputClass,
 } from "../components/ui";
 import { APP_STATUS, APP_STATUSES, INTERVIEW_STAGES, REJECTION_STAGES } from "../theme";
-import type { Application } from "../types";
+import type { Application, CalendarEvent, Interview } from "../types";
 import { useFetch } from "../useFetch";
 
 const SORTS = { date: "Newest first", score: "Best score first", health: "Lowest health first", company: "Company A–Z" } as const;
@@ -18,6 +19,17 @@ const FILTERS: Record<string, { label: string; match: (s: string) => boolean }> 
   OFFER: { label: "Offer", match: (s) => s === "OFFER" },
   REJECTED: { label: "Rejected", match: (s) => s === "REJECTED" },
 };
+
+const VIEWS = [["table", "Table", List], ["board", "Board", Columns3], ["calendar", "Calendar", CalendarDays]] as const;
+// Board lanes: a card dropped on a lane gets the lane's first status (Closed asks why it stopped).
+const LANES = [
+  { id: "applied", label: "Applied", statuses: ["APPLIED"] },
+  { id: "recruiter", label: "Recruiter", statuses: ["RECRUITER_CONTACTED", "RECRUITER_REPLIED"] },
+  { id: "interviewing", label: "Interviewing", statuses: INTERVIEW_STAGES },
+  { id: "offer", label: "Offer", statuses: ["OFFER"] },
+  { id: "closed", label: "Closed", statuses: ["REJECTED", "WITHDRAWN"] },
+];
+const when = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function HealthPill({ score }: { score: number }) {
   const tone = score >= 70 ? "bg-ok-bg text-ok" : score >= 45 ? "bg-warn-bg text-warn" : "bg-bad-bg text-bad";
@@ -31,6 +43,16 @@ export default function Applications() {
   const [sort, setSort] = useState<keyof typeof SORTS>("date");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [askStage, setAskStage] = useState<number | null>(null);
+  const [view, setView] = useState<string>(() => { try { return localStorage.getItem("apps-view") ?? "table"; } catch { return "table"; } });
+  const [dragging, setDragging] = useState<number | null>(null);
+  const chooseView = (v: string) => { setView(v); try { localStorage.setItem("apps-view", v); } catch { /* not kept */ } };
+
+  function dropOn(lane: (typeof LANES)[number]) {
+    const app = (apps ?? []).find((a) => a.id === dragging);
+    setDragging(null);
+    if (!app || lane.statuses.includes(app.status)) return;
+    if (lane.id === "closed") setAskStage(app.id); else update(app, { status: lane.statuses[0] });
+  }
 
   async function update(app: Application, body: object) {
     try {
@@ -94,18 +116,28 @@ export default function Applications() {
 
   return (
     <div className="space-y-5">
-      <PageTitle title="Applications" subtitle="Track and manage all your job applications." />
+      <PageTitle title="Applications" subtitle="Track and manage all your job applications."
+        right={!!apps?.length && (
+          <div role="tablist" aria-label="View" className="flex gap-1 rounded-control border border-line bg-surface p-1 shadow-card">
+            {VIEWS.map(([id, label, Icon]) => (
+              <button key={id} role="tab" aria-selected={view === id} onClick={() => chooseView(id)}
+                className={`inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-sm font-medium transition-colors ${view === id ? "bg-primary text-white shadow-sm" : "text-muted hover:bg-canvas hover:text-ink"}`}>
+                <Icon className="size-4" aria-hidden />{label}
+              </button>
+            ))}
+          </div>
+        )} />
       <ErrorText error={error ?? saveError} />
 
       {loading && !apps ? (
         <div className="space-y-3"><SkeletonCard /><SkeletonCard /></div>
       ) : !apps?.length ? (
         <Empty icon={Send} title="No applications yet"
-          text="Start applying to relevant jobs and your applications will appear here. Open a job, download the tailored CV, apply, then click “Mark as applied”."
+          text="Start applying to relevant jobs and your applications will appear here. Open a job, download the standard CV, apply, then click “Mark as applied”."
           action={<Link to="/jobs" className={buttonClass("primary")}>Browse jobs</Link>} />
       ) : (
         <>
-          <div className="space-y-3 rounded-card border border-line bg-surface p-4 shadow-card">
+          {view !== "calendar" && <div className="space-y-3 rounded-card border border-line bg-surface p-4 shadow-card">
             <div className="flex flex-col gap-2 sm:flex-row">
               <label className="relative min-w-0 flex-1">
                 <span className="sr-only">Search applications</span>
@@ -127,12 +159,46 @@ export default function Applications() {
                 return n ? <Chip key={k} on={filter === k} onClick={() => setFilter(filter === k ? null : k)} count={n}>{f.label}</Chip> : null;
               })}
             </div>
-          </div>
+          </div>}
 
-          {!shown.length && <Empty icon={Search} title="Nothing found" text="No application matches this search or filter." />}
+          {view !== "calendar" && !shown.length && <Empty icon={Search} title="Nothing found" text="No application matches this search or filter." />}
+
+          {view === "calendar" && <Agenda />}
+
+          {view === "board" && !!shown.length && (
+            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+              {LANES.map((lane) => {
+                const cards = shown.filter((a) => lane.statuses.includes(a.status));
+                return (
+                  <section key={lane.id} aria-label={lane.label} onDragOver={(e) => e.preventDefault()} onDrop={() => dropOn(lane)}
+                    className={`min-w-0 rounded-card border border-line bg-canvas p-2 ${dragging !== null ? "outline-dashed outline-1 outline-primary/40" : ""}`}>
+                    <h2 className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                      {lane.label}<span className="rounded-full bg-surface px-1.5 tabular-nums">{cards.length}</span>
+                    </h2>
+                    <div className="space-y-2">
+                      {cards.map((a) => (
+                        <article key={a.id} draggable onDragStart={() => setDragging(a.id)} onDragEnd={() => setDragging(null)}
+                          className="cursor-grab space-y-2 rounded-control border border-line bg-surface p-3 shadow-card active:cursor-grabbing">
+                          <div className="flex items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Link to={`/jobs/${a.job.id}`} className="text-sm font-semibold leading-snug text-ink hover:text-primary">{a.job.title}</Link>
+                              <div className="truncate text-xs text-muted">{a.job.company}</div>
+                            </div>
+                            <Score value={a.score} />
+                          </div>
+                          {a.interviews?.[0] && <NextInterview list={a.interviews} />}
+                          {statusControl(a)}
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
 
           {/* Phones / tablets: cards */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
+          {view === "table" && <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
             {shown.map((a) => (
               <article key={a.id} className="min-w-0 space-y-3 rounded-card border border-line bg-surface p-4 shadow-card">
                 <div className="flex items-start gap-3">
@@ -153,13 +219,14 @@ export default function Applications() {
                   <span className="flex items-center gap-1.5 text-xs text-muted">Health <HealthPill score={a.health.score} /></span>
                 </div>
                 {nextStep(a)}
+                <Interviews app={a} onSave={(list) => update(a, { interviews: list })} />
                 {files(a)}
               </article>
             ))}
-          </div>
+          </div>}
 
           {/* Desktop: table */}
-          {!!shown.length && (
+          {view === "table" && !!shown.length && (
             <div className="hidden lg:block">
               <Table head={["Company", "Job title", "Applied", "Status", "Match", "Health", "Next step", "Files"]}>
                 {shown.map((a) => (
@@ -175,7 +242,7 @@ export default function Applications() {
                     <td className="px-4 py-3">{statusControl(a)}</td>
                     <td className="px-4 py-3"><Score value={a.score} /></td>
                     <td className="px-4 py-3"><HealthPill score={a.health.score} /></td>
-                    <td className="max-w-[220px] px-4 py-3">{nextStep(a)}</td>
+                    <td className="max-w-[240px] space-y-2 px-4 py-3">{nextStep(a)}<Interviews app={a} onSave={(list) => update(a, { interviews: list })} /></td>
                     <td className="px-4 py-3">{files(a)}</td>
                   </tr>
                 ))}
@@ -184,6 +251,92 @@ export default function Applications() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function NextInterview({ list }: { list: Interview[] }) {
+  const next = list.find((i) => new Date(i.at) >= new Date()) ?? list[list.length - 1];
+  return <span className="inline-flex items-center gap-1 text-xs font-medium text-violet"><Mic className="size-3.5" aria-hidden />{next.kind} · {when(next.at)}</span>;
+}
+
+/** Interview dates of one application: list + add form. Saved as the whole list. */
+function Interviews({ app, onSave }: { app: Application; onSave: (list: Interview[]) => Promise<void> }) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ at: "", kind: "HR screen", note: "" });
+  const list = app.interviews ?? [];
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    if (!form.at) return;
+    await onSave([...list, { ...form, at: new Date(form.at).toISOString() }]);
+    setAdding(false);
+    setForm({ at: "", kind: "HR screen", note: "" });
+  }
+  return (
+    <div className="space-y-1">
+      {list.map((i, n) => (
+        <div key={n} className="flex items-start gap-1 text-xs">
+          <Mic className="mt-0.5 size-3.5 shrink-0 text-violet" aria-hidden />
+          <span className="min-w-0 flex-1"><b className="font-medium text-ink">{i.kind}</b> · {when(i.at)}{i.note && <span className="block text-muted">{i.note}</span>}</span>
+          <button onClick={() => onSave(list.filter((_, k) => k !== n))} aria-label={`Remove ${i.kind} interview`} className="rounded p-0.5 text-slate-400 hover:text-bad"><X className="size-3" /></button>
+        </div>
+      ))}
+      {adding ? (
+        <form onSubmit={add} className="space-y-1.5 rounded-control border border-line p-2">
+          <input type="datetime-local" required className={`${inputClass} h-8 py-1 text-xs`} value={form.at} onChange={(e) => setForm({ ...form, at: e.target.value })} aria-label="Interview date and time" />
+          <select className={`${inputClass} h-8 py-1 text-xs`} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} aria-label="Interview type">
+            {["HR screen", "Technical", "Take-home", "Hiring manager", "Final", "Other"].map((k) => <option key={k}>{k}</option>)}
+          </select>
+          <input className={`${inputClass} h-8 py-1 text-xs`} placeholder="Note (who, link…)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} aria-label="Note" />
+          <div className="flex gap-1.5"><Button type="submit" kind="primary">Save</Button><Button onClick={() => setAdding(false)}>Cancel</Button></div>
+        </form>
+      ) : (
+        <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+          <Plus className="size-3.5" aria-hidden /> Add interview date
+        </button>
+      )}
+    </div>
+  );
+}
+
+const EVENT_LOOK = {
+  interview: { icon: Mic, className: "bg-violet-bg text-violet", label: "Interview" },
+  follow_up: { icon: BellRing, className: "bg-info-bg text-info", label: "Follow-up" },
+  deadline: { icon: CalendarClock, className: "bg-warn-bg text-warn", label: "Deadline" },
+};
+
+/** Calendar as an agenda: the next 60 days, grouped by day (interviews, follow-ups, deadlines of saved/open jobs). */
+function Agenda() {
+  const { data: events, error } = useFetch<CalendarEvent[]>("/api/applications/calendar?days=60");
+  if (error) return <ErrorText error={error} />;
+  if (!events) return <SkeletonCard />;
+  if (!events.length) return <Empty icon={CalendarDays} title="Nothing planned" text="Add interview dates to your applications, or deadlines to jobs, and they show up here." />;
+  const days = new Map<string, CalendarEvent[]>();
+  events.forEach((e) => {
+    const day = new Date(e.at).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    days.set(day, [...(days.get(day) ?? []), e]);
+  });
+  return (
+    <div className="space-y-4">
+      {[...days].map(([day, list]) => (
+        <section key={day} className="rounded-card border border-line bg-surface p-4 shadow-card">
+          <h2 className="mb-2 text-sm font-semibold text-ink">{day}</h2>
+          <ul className="divide-y divide-line">
+            {list.map((e, n) => {
+              const look = EVENT_LOOK[e.type];
+              return (
+                <li key={n} className="flex items-start gap-3 py-2">
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${look.className}`}><look.icon className="size-3.5" aria-hidden />{look.label}</span>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <Link to={`/jobs/${e.job_id}`} className="font-medium text-ink hover:text-primary">{e.title}</Link>
+                    <div className="text-xs text-muted">{e.company}{e.type === "interview" && ` · ${new Date(e.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`}{e.note && ` · ${e.note}`}{e.overdue && " · overdue"}</div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

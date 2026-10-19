@@ -12,7 +12,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.defaults import user_settings
 from app.models import AutomationLog, AutomationRun, Profile, now
-from app.services import jobs
+from app.services import freshness, jobs
 from app.sources import SourceBlocked, search
 
 
@@ -62,9 +62,11 @@ def step(db, run: AutomationRun, seconds: float) -> AutomationRun:
     run.config = {**cfg, "cursor": result["cursor"], "blocked": result["blocked"]}
     log(f"Step done: {result['cursor']}/{result['total']} searches")
     if result["done"] and run.status == "RUNNING":
+        checked = freshness.recheck_jobs(db, profile, limit=15, seconds=60)
+        log(f"Re-checked {checked['checked']} open jobs: {len(checked['closed'])} closed")
         run.status, run.ended_at = "FINISHED", now()
         run.summary = (f"All searches done. {run.qualified} new matching jobs (score ≥ {cfg['min_score']}). "
-                       "Open Jobs to get your tailored CV and cover letter.")
+                       "Open Jobs to get your standard CV and a cover letter.")
         log(run.summary)
     db.commit()
     return run
@@ -135,15 +137,19 @@ class Runner:
                         except SourceBlocked as exc:
                             blocked.add(source)
                             self.run_row.errors += 1
+                            jobs.record_source(self.db, self.run_row.user_id, source, str(exc), blocked=True)
                             self.log(f"SOURCE BLOCKED - {exc}", "WARNING")
                             continue
                         except Exception as exc:  # a broken source must not stop the whole run
                             self.run_row.errors += 1
+                            jobs.record_source(self.db, self.run_row.user_id, source, f"{source} failed: {exc}")
                             self.log(f"{source} failed: {exc}", "ERROR")
                             continue
+                        jobs.record_source(self.db, self.run_row.user_id, source)
                         for raw in found:
                             self.checkpoint()
                             self.process(raw)
+                self.recheck()
                 wait = float(self.cfg.get("repeat_every_minutes", 30)) * 60
                 if wait <= 0 or self.runtime() + wait >= self.max_seconds:
                     reason = "All searches done"
@@ -160,6 +166,13 @@ class Runner:
         except Exception as exc:
             reason, status = f"Failed: {exc}", "FAILED"
         self.finish(status, reason)
+
+    def recheck(self) -> None:
+        """After each full pass: are the best open jobs still online? Closed ones get hidden."""
+        profile = self.db.query(Profile).filter_by(user_id=self.run_row.user_id).one()
+        result = freshness.recheck_jobs(self.db, profile, limit=25, seconds=120)
+        self.log(f"Re-checked {result['checked']} open jobs: {len(result['closed'])} closed"
+                 + "".join(f"\n  closed: {j['title']} · {j['company']}" for j in result["closed"]))
 
     def process(self, raw: dict) -> None:
         profile = self.db.query(Profile).filter_by(user_id=self.run_row.user_id).one()
@@ -183,7 +196,7 @@ class Runner:
         self.db.rollback()
         self.db.refresh(self.run_row)
         summary = (f"{reason}. {self.run_row.qualified} new matching jobs (score ≥ {self.cfg['min_score']}). "
-                   f"Open Jobs → Top Matches to get your tailored CV and cover letter.")
+                   f"Open Jobs to get your standard CV and a cover letter.")
         self.run_row.status, self.run_row.ended_at, self.run_row.summary = status, now(), summary
         self.run_row.paused_seconds = self.paused
         self.db.commit()

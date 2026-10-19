@@ -41,17 +41,30 @@ def test_import_dedup_and_jd_versions(client):
     assert client.get("/api/jobs", params={"keyword": "scada", "visa": True}).json()["total"] == 1
 
 
-def test_tailored_cv_and_cover_letter_buttons(client):
+def test_standard_cv_and_cover_letter_buttons(client):
     job_id = client.post("/api/jobs/import", json=JOB).json()["id"]
+    other_id = client.post("/api/jobs/import", json={**JOB, "title": "Python Developer", "company": "Other GmbH",
+                                                      "description": "Python FastAPI developer. " + SCADA_JD[::-1],
+                                                      "application_url": "https://example.com/jobs/other"}).json()["id"]
+    client.patch("/api/profile", json={"email": "me@example.com", "visa_required": True})
 
     cv = client.get(f"/api/jobs/{job_id}/cv.docx")
-    assert cv.status_code == 200 and "Arpita_Chaudhari_CV_Muster" in cv.headers["content-disposition"]
+    assert cv.status_code == 200 and 'filename="Arpita_Chaudhari_CV.docx"' in cv.headers["content-disposition"]
+    # One standard CV: the same file for every job and for /api/cv.docx, no company name, nothing tailored
     lines = docx_text(cv.content)
-    assert any(line.startswith("Most relevant for this role:") and "OPC UA" in line for line in lines)
-    # Nothing invented: every bullet is a real CV bullet, and the most relevant one comes first
+    assert docx_text(client.get(f"/api/jobs/{other_id}/cv.docx").content) == lines == docx_text(client.get("/api/cv.docx").content)
+    assert "Email\tme@example.com" in lines and not any(line.startswith("Work permit") for line in lines)   # visa need: not on the CV
+    assert "04/2026 – present\tSystem Software Engineer — Industrial Automation" in lines          # German date column
+    assert not any("Muster" in line for line in lines)
     real = {b for e in DEFAULT_PROFILE["experience"] for b in e["bullets"]} | {b for p in DEFAULT_PROFILE["projects"] for b in p["bullets"]}
-    first = lines[lines.index(next(line for line in lines if line.startswith("System Software Engineer"))) + 1]
-    assert first in real and ("OPC-UA" in first or "SCADA" in first)
+    assert real <= set(lines)                       # every real bullet, unchanged
+    assert "01/2022 – 01/2023\tMSc Computer Science — Greenwich University, London, United Kingdom" in lines
+    section = Document(io.BytesIO(cv.content)).sections[0]
+    assert round(section.page_width.cm, 1) == 21.0 and round(section.page_height.cm, 1) == 29.7   # A4
+
+    edited = [{**DEFAULT_PROFILE["projects"][0], "bullets": ["A bullet I edited myself."]}]
+    assert client.patch("/api/profile", json={"projects": edited}).json()["projects"] == edited       # CV edits via the API
+    assert "A bullet I edited myself." in docx_text(client.get("/api/cv.docx").content)
 
     letter = client.post(f"/api/jobs/{job_id}/cover-letter").json()
     assert "Muster Automation GmbH" in letter["text"] and "Kevision Systems" in letter["text"] and not letter["warnings"]
@@ -135,10 +148,10 @@ def test_interview_prep(client):
     skills = [t["skill"] for t in prep["technical"]]
     assert "OPC UA" in skills and "Modbus" in skills
     assert any(s["skill"] == "OPC UA" and "OPC" in s["where"] for s in prep["stories"])   # a real CV project
-    assert any(g["skill"] == "PostgreSQL" for g in prep["gaps"])
+    assert any(g["skill"] == "Kubernetes" for g in prep["gaps"])
     assert prep["general_questions"]
     dashboard = client.get("/api/dashboard").json()
-    assert any(s["skill"] == "PostgreSQL" for s in dashboard["skills_to_learn"])
+    assert any(s["skill"] == "Kubernetes" for s in dashboard["skills_to_learn"])
 
 
 def test_recruiters_page_and_pitch(client):
@@ -260,7 +273,7 @@ def test_job_analysis_is_honest(client):
     assert must["Python"] == "strong" and must["OPC UA"] == "strong"
     assert a["scores"]["range"][0] <= a["scores"]["overall"] <= a["scores"]["range"][1]
     assert a["dsa"]["level"] == "Low–Medium" and a["dsa"]["basis"].startswith("Estimated")          # industrial company
-    assert a["recommendation"]["decision"] == "APPLY" and a["cv_plan"]["cv_version"] == "CV-003"
+    assert a["recommendation"]["decision"] == "APPLY" and a["cv_plan"]["cv_version"] == "STANDARD"
     assert any("L2 LineSync" in q["question"] for q in a["predicted_questions"])                       # questions from YOUR CV
     assert all(k["keyword"] not in {s["name"] for s in DEFAULT_PROFILE["skills"]} for k in a["ats"]["must_not_add"])
     assert a["research"] is None and a["readiness"]["note"].startswith("Estimated")
@@ -269,7 +282,7 @@ def test_job_analysis_is_honest(client):
 def test_contacts_health_and_follow_up(client):
     job_id = client.post("/api/jobs/import", json=JOB).json()["id"]
     assert client.get(f"/api/jobs/{job_id}/analysis").json()["health"]["score"] == 10                  # only "JD match"
-    client.post(f"/api/jobs/{job_id}/applied", json={"cv_version": "CV-004"})
+    client.post(f"/api/jobs/{job_id}/applied", json={})
     rec = client.post(f"/api/jobs/{job_id}/contacts", json={
         "name": "Sarah Müller", "role": "Technical Recruiter", "kind": "recruiter",
         "linkedin_url": "https://www.linkedin.com/in/example"}).json()
@@ -281,7 +294,7 @@ def test_contacts_health_and_follow_up(client):
     assert msg["email_allowed"] is False                                                                # no public email given
     client.patch(f"/api/contacts/{rec['id']}", json={"contacted": True})
     [app] = client.get("/api/applications").json()
-    assert app["status"] == "RECRUITER_CONTACTED" and app["cv_version"] == "CV-004" and app["next_follow_up"]
+    assert app["status"] == "RECRUITER_CONTACTED" and app["cv_version"] == "STANDARD" and app["cv_version_name"] == "Standard CV" and app["next_follow_up"]
     assert app["health"]["score"] >= 70 and app["snapshot"]["recommendation"]["decision"] == "APPLY"
     for i in range(2):
         client.post(f"/api/jobs/{job_id}/contacts", json={"name": f"Person {i}", "role": "Engineering Manager", "kind": "hiring_manager"})
@@ -388,3 +401,125 @@ def test_serverless_steps_and_cron(client, monkeypatch):
     assert client.get("/api/cron/daily", headers={"Authorization": "Bearer nope"}).status_code == 401
     ok = client.get("/api/cron/daily", headers={"Authorization": "Bearer s3cret"}).json()
     assert ok["stepped"] == []            # today's run already finished: no second run the same day
+
+
+def test_closed_jobs_bookmarks_deadline_and_source_health(client, monkeypatch):
+    from app.services import freshness
+    client.patch("/api/settings", json={"sources": ["demo"], "search_queries": ["*"]})
+    client.post("/api/jobs/search-step", json={"cursor": 0})
+    health = {s["source"]: s for s in client.get("/api/source-health").json()["sources"]}
+    assert health["demo"]["last_ok_at"] and health["demo"]["jobs"] == 6 and health["demo"]["last_error"] is None
+
+    jobs = client.get("/api/jobs", params={"view": "all"}).json()["items"]
+    good = [j for j in jobs if j["ats_score"] >= 70]
+    gone = good[0]["source_url"].rsplit("/", 1)[1]
+    # job 0: both of its links are gone → closed; every other job: its pages are fine
+    monkeypatch.setattr(freshness, "is_closed", lambda url: url.split("/jobs/")[1].split("/")[0] == gone)
+    monkeypatch.setattr(freshness.time, "sleep", lambda s: None)
+    monkeypatch.setattr(freshness, "NOT_CHECKED", ("manual",))
+    result = client.post("/api/jobs/recheck").json()
+    assert result["checked"] == len(good) and [c["id"] for c in result["closed"]] == [good[0]["id"]]
+    visible = {j["id"] for j in client.get("/api/jobs", params={"view": "all"}).json()["items"]}
+    assert good[0]["id"] not in visible                                                   # closed → hidden (and never applied to)
+    assert good[0]["id"] in {j["id"] for j in client.get("/api/jobs", params={"view": "all", "show_closed": True}).json()["items"]}
+    monkeypatch.setattr(freshness, "is_closed", lambda url: not url.endswith("/apply"))         # one open link is enough
+    client.patch(f"/api/jobs/{good[0]['id']}", json={"reopen": True})
+    assert client.post("/api/jobs/recheck").json()["closed"] == []
+    assert good[0]["id"] in {j["id"] for j in client.get("/api/jobs", params={"view": "all"}).json()["items"]}
+
+    client.patch(f"/api/jobs/{good[1]['id']}", json={"is_saved": True, "deadline": "2026-11-30"})
+    [saved] = client.get("/api/jobs", params={"view": "all", "saved": True}).json()["items"]
+    assert saved["id"] == good[1]["id"] and saved["deadline"] == "2026-11-30"
+    assert client.patch(f"/api/jobs/{good[1]['id']}", json={"deadline": "30.11.2026"}).status_code == 422
+
+
+def test_interviews_and_calendar(client):
+    from datetime import UTC, datetime, timedelta
+    job_id = client.post("/api/jobs/import", json=JOB).json()["id"]
+    other = client.post("/api/jobs/import", json={**JOB, "title": "Python Developer", "company": "Other GmbH",
+                                                   "description": "Python FastAPI developer. " + SCADA_JD[::-1],
+                                                   "application_url": "https://example.com/jobs/other"}).json()["id"]
+    app = client.post(f"/api/jobs/{job_id}/applied", json={}).json()
+    soon = (datetime.now(UTC) + timedelta(days=3)).replace(microsecond=0)
+    r = client.patch(f"/api/applications/{app['id']}", json={"interviews": [
+        {"at": (soon + timedelta(days=7)).isoformat(), "kind": "Technical"}, {"at": soon.replace(tzinfo=None).isoformat(), "kind": "HR screen"}]})
+    assert [i["kind"] for i in r.json()["interviews"]] == ["HR screen", "Technical"]          # sorted; bare time = UTC
+    client.patch(f"/api/jobs/{other}", json={"deadline": (soon + timedelta(days=1)).date().isoformat()})
+    events = client.get("/api/applications/calendar").json()
+    assert [e["type"] for e in events] == ["follow_up", "interview", "deadline", "interview"]
+    assert events[1]["title"].startswith("HR screen: SCADA") and events[2]["job_id"] == other
+
+
+def test_cv_import_reads_word_and_pdf_text(client):
+    import base64
+    cv = client.get("/api/cv.docx").content
+    r = client.post("/api/profile/cv-import", json={"filename": "my_cv.docx", "content_base64": base64.b64encode(cv).decode()}).json()
+    assert "Kevision Systems" in r["text"] and r["draft"] is None and "AI_API_KEY" in r["message"]   # no AI key in tests
+    bad = client.post("/api/profile/cv-import", json={"filename": "cv.txt", "content_base64": base64.b64encode(b"hello").decode()})
+    assert bad.status_code == 422
+
+
+def test_cv_import_with_claude_returns_a_draft_only(client, monkeypatch):
+    import base64
+    from app.logic import ai
+    fake = {"headline": "H", "summary": "S", "experience": [], "projects": [], "languages": [],
+            "education": [{"degree": "MSc Computer Science", "school": "Greenwich University", "dates": "January 2022 – January 2023"}],
+            "skills": ["python", "OPC-UA"]}
+    monkeypatch.setattr(ai, "available", lambda: True)
+    monkeypatch.setattr(ai, "extract_cv", lambda text: dict(fake))
+    before = client.get("/api/profile").json()
+    r = client.post("/api/profile/cv-import", json={"filename": "cv.docx", "content_base64": base64.b64encode(client.get("/api/cv.docx").content).decode()}).json()
+    assert r["draft"]["education"] == ["MSc Computer Science | Greenwich University | January 2022 – January 2023"]
+    assert [s["name"] for s in r["draft"]["skills"]] == ["Python", "OPC UA"]
+    assert client.get("/api/profile").json() == before                                     # nothing saved until you click Save
+
+
+def test_recruitment_directory(client, monkeypatch):
+    from app.data.recruitment_companies import RECRUITMENT_COMPANIES
+    from app.services import agencies
+    assert len(RECRUITMENT_COMPANIES) == 50
+    assert len({c["name"] for c in RECRUITMENT_COMPANIES}) == 50 and len({c["seed_id"] for c in RECRUITMENT_COMPANIES}) == 50
+    assert all(c["website_url"].startswith("https://") for c in RECRUITMENT_COMPANIES)
+    data = client.get("/api/agencies").json()
+    assert data["total"] == 50                                                   # all 50 seeded for the user
+    first = data["items"][0]
+    assert first["status"] == "NOT_REVIEWED" and first["verification_status"] == "unverified"
+    assert all(a[f] is None for a in data["items"] for f in ("india_candidate_support_verified", "visa_sponsorship_support_verified",
+                                                              "relocation_support_verified"))   # never assumed
+    assert {a["name"] for a in client.get("/api/agencies", params={"category": "india"}).json()["items"]} >= {"IndiaWorks", "Velai"}
+    assert [a["name"] for a in client.get("/api/agencies", params={"q": "hays"}).json()["items"]] == ["Hays"]
+    assert all("SAP & ERP" in a["job_family_specializations"] for a in client.get("/api/agencies", params={"family": "SAP & ERP"}).json()["items"])
+    assert client.get("/api/agencies/options").json()["statuses"][0] == "NOT_REVIEWED"
+
+    hays = client.get("/api/agencies", params={"q": "hays"}).json()["items"][0]
+    assert client.patch(f"/api/agencies/{hays['id']}", json={"status": "MAYBE"}).status_code == 422
+    assert client.patch(f"/api/agencies/{hays['id']}", json={"visa_sponsorship_support_verified": True}).status_code == 422  # no source
+    r = client.patch(f"/api/agencies/{hays['id']}", json={"status": "PROFILE_REGISTERED", "is_saved": True, "notes": "Registered online",
+                                                         "relocation_support_verified": True, "source_url": "https://www.hays.de/en/relocation"}).json()
+    assert r["verification_status"] == "confirmed" and r["relocation_support_verified"] is True and r["visa_sponsorship_support_verified"] is None
+    assert [a["name"] for a in client.get("/api/agencies", params={"saved": True}).json()["items"]] == ["Hays"]
+
+    # a job advertised by ALTEN is linked to the recruiter; applying saves the application AND sets the recruiter to Applied
+    job = client.post("/api/jobs/import", json={**JOB, "company": "ALTEN GmbH", "source": "smartrecruiters"}).json()
+    assert client.get(f"/api/jobs/{job['id']}").json()["agency"] == "ALTEN Germany"
+    alten = client.get("/api/agencies", params={"q": "alten"}).json()["items"][0]
+    assert alten["jobs"] == 1 and alten["ingestion"] == "automatic"
+    assert client.get(f"/api/agencies/{alten['id']}/jobs").json()[0]["employer"] is None   # ad names no other employer
+    client.post(f"/api/jobs/{job['id']}/applied", json={})
+    alten = client.get("/api/agencies", params={"q": "alten"}).json()["items"][0]
+    assert alten["status"] == "APPLIED" and alten["applied"] == 1 and alten["last_contact_at"]
+    assert [a["job"]["company"] for a in client.get("/api/applications").json()] == ["ALTEN GmbH"]
+
+    monkeypatch.setattr(agencies, "check_website", lambda url: ("website_ok", "HTTP 200") if "hays" not in url else ("website_blocked", "HTTP 403"))
+    monkeypatch.setattr(agencies.time, "sleep", lambda s: None)
+    result = client.post("/api/agencies/check-websites").json()
+    assert result["checked"] == 50 and result["ok"] == 49
+    hays = client.get("/api/agencies", params={"q": "hays"}).json()["items"][0]
+    assert hays["verification_status"] == "confirmed"                            # your confirmation is never downgraded
+    assert client.get("/api/agencies", params={"q": "velai"}).json()["items"][0]["verification_status"] == "website_ok"
+
+
+def test_agency_matching_is_exact():
+    from app.services.agencies import _key
+    assert _key("ALTEN GmbH") == _key("Alten") == "alten"
+    assert _key("Hays AG") == "hays" and _key("Haystack Software") != "hays"

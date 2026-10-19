@@ -12,8 +12,8 @@ import { useFetch } from "../useFetch";
 
 // Donut colors per application status (same meaning as the badges in theme.ts)
 const STATUS_COLOR: Record<string, string> = {
-  APPLIED: "#16a34a", RECRUITER_CONTACTED: "#f97316", RECRUITER_REPLIED: "#3b82f6", HR_SCREEN: "#a855f7", TECHNICAL: "#9333ea",
-  TAKE_HOME: "#7e22ce", HIRING_MANAGER: "#6b21a8", FINAL: "#581c87", OFFER: "#047857", REJECTED: "#dc2626", WITHDRAWN: "#9ca3af",
+  APPLIED: "#16a34a", RECRUITER_CONTACTED: "#f97316", RECRUITER_REPLIED: "#38bdf8", HR_SCREEN: "#f9a8d4", TECHNICAL: "#f472b6",
+  TAKE_HOME: "#ec4899", HIRING_MANAGER: "#db2777", FINAL: "#be185d", OFFER: "#047857", REJECTED: "#dc2626", WITHDRAWN: "#9ca3af",
 };
 
 function greeting() {
@@ -39,16 +39,20 @@ export default function Dashboard() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-[30px]">{greeting()}{firstName ? `, ${firstName}` : ""}</h1>
+        <span className="mb-2 block h-1.5 w-12 rounded-full bg-brand-strong" aria-hidden />
+        <h1 className="text-2xl font-bold tracking-tight sm:text-[30px]">{greeting()}{firstName && <>, <span className="text-brand">{firstName}</span></>} 👋</h1>
         <p className="mt-1 text-sm text-muted">Here's what's happening with your job search.</p>
       </div>
 
       {goal && (
-        <Link to="/strategy" className="flex flex-wrap items-center gap-3 rounded-card border border-primary-100 bg-primary-50 px-4 py-3 text-sm transition-colors hover:border-primary/40">
-          <Flag className="size-4 text-primary" aria-hidden />
-          <span><b className="tabular-nums">{goal.goal.days_remaining} days</b> to your Germany job goal ({formatDate(goal.goal.goal_date)})</span>
-          <span className="text-muted">· {goal.weekly.diagnosis[0]}</span>
-          <span className="ml-auto inline-flex items-center gap-1 font-medium text-primary">Strategy <ChevronRight className="size-4" /></span>
+        <Link to="/strategy" className="relative flex flex-wrap items-center gap-3 overflow-hidden rounded-card border border-white bg-brand px-5 py-4 text-sm text-ink shadow-card transition hover:shadow-lift">
+          <span className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-white/40" aria-hidden />
+          <span className="grid size-10 place-items-center rounded-control bg-white/70 text-teal-700"><Flag className="size-5" aria-hidden /></span>
+          <span className="min-w-0">
+            <span className="block text-base"><b className="text-xl tabular-nums">{goal.goal.days_remaining} days</b> to your job goal in Germany ({formatDate(goal.goal.goal_date)})</span>
+            <span className="block text-slate-600">{goal.weekly.diagnosis[0]}</span>
+          </span>
+          <span className="relative ml-auto inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1.5 font-medium text-teal-700">Strategy <ChevronRight className="size-4" /></span>
         </Link>
       )}
 
@@ -132,7 +136,7 @@ export default function Dashboard() {
             {apps === null ? <SkeletonCard lines={3} /> : apps.length ? (
               <Donut parts={byStatus} center={<span><span className="block text-xl font-bold">{apps.length}</span><span className="text-[11px] text-muted">applied</span></span>} />
             ) : (
-              <p className="text-sm text-muted">No applications yet. Open a match, download the tailored CV, apply, then click “Mark as applied”.</p>
+              <p className="text-sm text-muted">No applications yet. Open a match, download the standard CV, apply, then click “Mark as applied”.</p>
             )}
           </Card>
         </div>

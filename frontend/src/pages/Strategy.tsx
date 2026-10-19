@@ -1,4 +1,4 @@
-// Germany Job Goal (January 2027): progress, conversion, this week's plan, and what the market wants.
+// Job goal (Germany, January 2027): progress, conversion, this week's plan, and what the market wants.
 import {
   BarChart3, BellRing, BookOpen, Briefcase, CalendarClock, Code, Flag, GraduationCap, Mail, Route, Send, Target, Timer, Trophy, TrendingUp, Users,
 } from "lucide-react";
@@ -18,7 +18,7 @@ export default function Strategy() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <PageTitle title="Germany Job Goal · January 2027" subtitle="Your search as a pipeline: is the strategy working, and what to do this week." />
+      <PageTitle title="Job goal · Germany by January 2027" subtitle="Your search as a pipeline: is the strategy working, and what to do this week." />
 
       <section className="rounded-card border border-primary-100 bg-primary-50 p-5 shadow-card sm:p-6">
         <div className="flex flex-wrap items-center gap-6">

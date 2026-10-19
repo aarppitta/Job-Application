@@ -1,5 +1,5 @@
-"""Jobs: list with filters, details, import, search, score, JD versions, tailored CV, cover letter, mark as applied."""
-from datetime import UTC, datetime, timedelta
+"""Jobs: list with filters, details, import, search, score, JD versions, standard CV, cover letter, mark as applied."""
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -9,14 +9,14 @@ from sqlalchemy.orm import Session
 from app.auth import current_profile
 from app.config import settings as app_config
 from app.database import get_db
-from app.defaults import CV_VERSIONS, user_settings
+from app.defaults import user_settings
 from app.logic import writer
-from app.logic.analysis import recommend_cv_version
-from app.logic.cv_tailor import docx_response, tailored_cv_docx, text_docx
+from app.logic.cv import docx_response, standard_cv_docx, text_docx
 from app.logic.interview import interview_prep
 from app.logic.scoring import match_label
 from app.models import Application, JDVersion, Job, JobSource, Profile, now
 from app.serialize import to_dict
+from app.services import agencies, freshness
 from app.services import jobs as job_service
 from app.sources import SOURCES
 
@@ -53,15 +53,22 @@ def start_of_today() -> datetime:
 def list_jobs(
     q: str = "", min_score: float | None = None, visa: bool = False, remote: bool = False, hybrid: bool = False,
     germany_only: bool = False, english_only: bool = False, days: int | None = None, keyword: list[str] = Query([]),
-    view: str = "week", sort: str = "score", page: int = 1, show_scams: bool = False,
-    profile: Profile = Depends(current_profile), db: Session = Depends(get_db),
+    view: str = "week", sort: str = "score", page: int = 1, show_scams: bool = False, show_closed: bool = False,
+    saved: bool = False, agency: str = "", profile: Profile = Depends(current_profile), db: Session = Depends(get_db),
 ):
-    """view: today = posted today · week = posted in the last 7 days · older = posted more than 7 days ago · all"""
+    """view: today = posted today · week = posted in the last 7 days · older = posted more than 7 days ago · all
+    Closed jobs (page gone / position filled) are hidden unless show_closed; saved = only your bookmarks."""
     threshold = user_settings(profile)["min_score"]
     query = db.query(Job, Application.status).outerjoin(
         Application, (Application.job_id == Job.id) & (Application.user_id == profile.user_id)).filter(Job.user_id == profile.user_id)
     if not show_scams:
         query = query.filter(Job.status != "RISK")  # only genuine postings
+    if not show_closed:
+        query = query.filter(Job.closed_at.is_(None))
+    if saved:
+        query = query.filter(Job.is_saved.is_(True))
+    if agency:
+        query = query.filter(Job.agency == agency)
     posted = func.coalesce(Job.posted_at, Job.discovered_at)  # posting date; if the site gives none, the day we found it
     week_ago = start_of_today() - timedelta(days=6)
     if view == "today":
@@ -123,8 +130,21 @@ def update_job(job_id: int, body: dict, profile: Profile = Depends(current_profi
     job = get_job(db, profile, job_id)
     if "is_saved" in body:
         job.is_saved = bool(body["is_saved"])
+    if "deadline" in body:  # "2026-11-30" or null
+        try:
+            job.deadline = date.fromisoformat(body["deadline"]) if body["deadline"] else None
+        except (TypeError, ValueError):
+            raise HTTPException(422, "deadline must look like 2026-11-30") from None
+    if body.get("reopen"):  # "this job is still open" (the recheck was wrong)
+        job.closed_at = None
     db.commit()
     return job_summary(job, user_settings(profile)["min_score"])
+
+
+@router.post("/recheck")
+def recheck(profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
+    """Re-open the pages of your best open jobs; the ones that are gone get hidden (and are never applied to)."""
+    return freshness.recheck_jobs(db, profile, limit=25, seconds=min(120, app_config.step_seconds))
 
 
 class ImportJob(BaseModel):
@@ -196,11 +216,7 @@ def versions(job_id: int, profile: Profile = Depends(current_profile), db: Sessi
     return [to_dict(v) for v in db.query(JDVersion).filter_by(job_id=job.id).order_by(JDVersion.version)]
 
 
-# ------------------------------------------------------------------ tailored CV, cover letter, applied
-
-
-def job_skills(job: Job) -> list[str]:
-    return [s["skill"] for s in job.parsed.get("skills", [])]
+# ------------------------------------------------------------------ CV, cover letter, applied
 
 
 def matched_skills(db: Session, job: Job) -> list[str]:
@@ -216,20 +232,13 @@ def interview(job_id: int, profile: Profile = Depends(current_profile), db: Sess
     return interview_prep(profile, job, score.matched_skills if score else [], score.missing_skills if score else [])
 
 
-def cv_version(job: Job, code: str | None) -> tuple[str, dict]:
-    """The CV version to use: the one you chose, else the one recommended for this job's role family."""
-    code = code if code in CV_VERSIONS else recommend_cv_version(job)[0]
-    return code, CV_VERSIONS[code]
-
-
 @router.get("/{job_id}/cv.docx")
-def tailored_cv(job_id: int, version: str | None = None, profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
-    """Your CV, tailored to this JD (reordered, nothing added), in the chosen CV version."""
+def job_cv(job_id: int, profile: Profile = Depends(current_profile), db: Session = Depends(get_db)):
+    """The CV for this job = the standard CV (the same file for every application)."""
     job = get_job(db, profile, job_id)
-    _, info = cv_version(job, version)
     job.cv_prepared_at = job.cv_prepared_at or now()
     db.commit()
-    return docx_response(tailored_cv_docx(profile, job, job_skills(job), info), profile, job, "CV")
+    return docx_response(standard_cv_docx(profile), profile, None, "CV")
 
 
 @router.post("/{job_id}/cover-letter")
@@ -251,7 +260,6 @@ def cover_letter_docx(job_id: int, body: LetterText, profile: Profile = Depends(
 
 class AppliedRequest(BaseModel):
     cover_letter: str | None = None   # the letter you sent (your edited version); generated if empty
-    cv_version: str | None = None     # CV-001 …; the recommended one if empty
 
 
 @router.post("/{job_id}/applied")
@@ -261,7 +269,6 @@ def mark_applied(job_id: int, body: AppliedRequest, profile: Profile = Depends(c
     if db.query(Application).filter_by(user_id=profile.user_id, job_id=job.id).first():
         raise HTTPException(409, "You already applied to this job.")
     letter = body.cover_letter or writer.cover_letter(profile, job, matched_skills(db, job))[0]
-    code, info = cv_version(job, body.cv_version)
     from app.routes.intelligence import full_analysis  # (late import: intelligence imports this module)
 
     analysis = full_analysis(db, profile, job)
@@ -269,11 +276,12 @@ def mark_applied(job_id: int, body: AppliedRequest, profile: Profile = Depends(c
     app = Application(
         user_id=profile.user_id, job_id=job.id, status="APPLIED", score=job.ats_score,
         jd_version=job_service.latest_version(db, job).version, cover_letter=letter,
-        tailored_cv=tailored_cv_docx(profile, job, job_skills(job), info), cv_version=code, analysis=snapshot,
+        tailored_cv=standard_cv_docx(profile), cv_version="STANDARD", analysis=snapshot,
         next_follow_up=now() + timedelta(days=2),  # day 2: contact a recruiter
         history=[{"status": "APPLIED", "at": now().isoformat()}],
     )
     db.add(app)
     job.status = "APPLIED"
+    agencies.on_applied(db, profile.user_id, job)  # advertised by a recruiter → its status becomes Applied
     db.commit()
     return {"id": app.id, "status": app.status}
