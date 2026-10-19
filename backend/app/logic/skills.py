@@ -97,7 +97,9 @@ RELATED = [
 ]
 
 # If you have the first skill, you also have the second.
-IMPLIES = {"WebSCADA": ["SCADA"], "OPC UA": ["OPC"], "Express.js": ["Node.js"], "MySQL": ["SQL"], "PostgreSQL": ["SQL"]}
+IMPLIES = {"WebSCADA": ["SCADA"], "OPC UA": ["OPC"], "Express.js": ["Node.js"], "MySQL": ["SQL"], "PostgreSQL": ["SQL"],
+           # writing TypeScript / Node.js / React means writing JavaScript; Angular apps are written in TypeScript
+           "TypeScript": ["JavaScript"], "Node.js": ["JavaScript"], "React": ["JavaScript"], "Angular": ["TypeScript"]}
 
 
 @cache
@@ -128,9 +130,13 @@ def canonical_skill(name: str) -> str:
 
 
 def with_implied(skills: set[str]) -> set[str]:
-    result = set(skills)
-    for s in skills:
-        result.update(IMPLIES.get(s, []))
+    """Skills plus everything they imply, following chains (Express.js → Node.js → JavaScript)."""
+    result, todo = set(skills), list(skills)
+    while todo:
+        for implied in IMPLIES.get(todo.pop(), []):
+            if implied not in result:
+                result.add(implied)
+                todo.append(implied)
     return result
 
 

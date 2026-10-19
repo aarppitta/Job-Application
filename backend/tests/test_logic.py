@@ -218,3 +218,13 @@ def test_recruiter_job_pages(monkeypatch):
     [job] = sources.recruiters("Python Developer", ["orizon"])
     assert job["agency"] == "Orizon" and job["company"] == "Orizon GmbH" and job["location"] == "Munich, Germany"
     assert "https://www.orizon.de/de/job/staplerfahrer-essen-t2" not in opened          # title doesn't match: never opened
+
+
+def test_skills_you_have_are_never_gaps():
+    from types import SimpleNamespace
+    from app.logic.analysis import requirements, skill_gaps
+    from app.logic.skills import with_implied
+    assert {"Node.js", "JavaScript"} <= with_implied({"Express.js"}) and "JavaScript" in with_implied({"Angular"})   # chains
+    job = job_from("Full Stack Developer", "Requirements: JavaScript, React, Kubernetes and Python. Full-time, English.")
+    gaps = {g["skill"] for g in skill_gaps(requirements(arpita(), job), {})}
+    assert "JavaScript" not in gaps and "React" not in gaps and "Kubernetes" in gaps

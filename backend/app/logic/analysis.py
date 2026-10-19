@@ -106,13 +106,16 @@ def skill_evidence(profile) -> set[str]:
     return with_implied(found)
 
 
+LISTED_ONLY = "Listed in your skills, but no CV project shows it yet"
+
+
 def my_skill_status(skill: str, profile) -> tuple[str, str]:
     """('strong' | 'partial' | 'missing', explanation)."""
     mine = with_implied({s["name"] for s in profile.skills})
     if skill in mine:
         if skill in skill_evidence(profile):
             return "strong", "On your CV with project evidence"
-        return "partial", "Listed in your skills, but no CV project shows it yet"
+        return "partial", LISTED_ONLY
     other = related_skill(skill, mine)
     if other:
         return "partial", f"Related: you know {other}"
@@ -305,8 +308,8 @@ def skill_gaps(reqs: dict, market: dict) -> list[dict]:
     gaps = []
     for group in ("must", "preferred", "nice"):
         for r in reqs[group]:
-            if r["status"] == "strong":
-                continue
+            if r["status"] == "strong" or r["why"] == LISTED_ONLY:
+                continue  # you HAVE it (only no CV bullet names it yet): not a gap to learn
             share = market.get("shares", {}).get(r["item"], 0)
             info = roi(r["item"], weight[group], share)
             gaps.append({
