@@ -65,7 +65,7 @@ def list_jobs(
     if not show_scams:
         query = query.filter(Job.status != "RISK")  # only genuine postings
     if not show_closed:
-        query = query.filter(Job.closed_at.is_(None))
+        query = query.filter(Job.closed_at.is_(None), Job.dismissed_at.is_(None))
     if saved:
         query = query.filter(Job.is_saved.is_(True))
     if agency:
@@ -142,6 +142,8 @@ def update_job(job_id: int, body: dict, profile: Profile = Depends(current_profi
         job.closed_at = None
     if body.get("close"):  # "this job is gone" (you checked it yourself): hide it like an automatic recheck would
         job.closed_at = now()
+    if "dismissed" in body:  # true = "not for me": hidden for good, never applied to; false = show it again
+        job.dismissed_at = now() if body["dismissed"] else None
     db.commit()
     return job_summary(job, user_settings(profile)["min_score"])
 

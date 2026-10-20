@@ -41,7 +41,8 @@ def recheck_jobs(db: Session, profile: Profile, limit: int = 25, seconds: float 
     """Re-check the most relevant open jobs (score ≥ threshold−10, not applied), least recently checked first."""
     threshold = user_settings(profile)["min_score"]
     applied = db.query(Application.job_id).filter_by(user_id=profile.user_id)
-    jobs = (db.query(Job).filter(Job.user_id == profile.user_id, Job.closed_at.is_(None), Job.ats_score >= threshold - 10,
+    jobs = (db.query(Job).filter(Job.user_id == profile.user_id, Job.closed_at.is_(None), Job.dismissed_at.is_(None),
+                                 Job.ats_score >= threshold - 10,
                                  Job.id.not_in(applied), or_(Job.source_url.isnot(None), Job.application_url.isnot(None)),
                                  Job.source.notin_(NOT_CHECKED))
             .order_by(Job.checked_at.asc().nulls_first(), Job.ats_score.desc()).limit(limit).all())

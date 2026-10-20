@@ -50,6 +50,8 @@ NEW_COLUMNS = [
     "ALTER TABLE applications ADD COLUMN IF NOT EXISTS interviews JSON DEFAULT '[]'",
     # 2026-10-19 recruitment companies directory (table created by create_all)
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agency VARCHAR(200)",
+    # 2026-10-20 "not for me": hidden for good (a new scrape re-opens closed jobs, never dismissed ones)
+    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dismissed_at TIMESTAMPTZ",
 ]
 
 

@@ -93,6 +93,7 @@ class Job(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # a source listed it (last time)
     checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))    # we re-opened the job page (freshness)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))     # page gone / "position filled" → hidden
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # you said "not for me" → hidden for good
     agency: Mapped[str | None] = mapped_column(String(200))  # recruitment company that advertised it (company = employer if named)
 
 

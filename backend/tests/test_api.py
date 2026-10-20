@@ -432,6 +432,22 @@ def test_closed_jobs_bookmarks_deadline_and_source_health(client, monkeypatch):
     assert saved["id"] == good[1]["id"] and saved["deadline"] == "2026-11-30"
     assert client.patch(f"/api/jobs/{good[1]['id']}", json={"deadline": "30.11.2026"}).status_code == 422
 
+    # "not for me": hidden from the list and the dashboard, survives a re-scrape (which re-opens closed jobs), undo works
+    target = good[1]["id"]
+    was_matching = client.get(f"/api/jobs/{target}").json()["status"] == "QUALIFIED"
+    before = client.get("/api/dashboard").json()["counts"]
+    client.patch(f"/api/jobs/{target}", json={"dismissed": True})
+    assert target not in {j["id"] for j in client.get("/api/jobs", params={"view": "all"}).json()["items"]}
+    assert target not in {j["id"] for j in client.get("/api/dashboard").json()["top_matches"]}
+    after = client.get("/api/dashboard").json()["counts"]
+    key = next(k for k in after if k.startswith("Matching"))
+    assert after[key] == before[key] - (1 if was_matching else 0)
+    client.patch(f"/api/jobs/{target}", json={"close": True, "reopen": False})
+    client.patch(f"/api/jobs/{target}", json={"reopen": True})  # like a scrape that sees it again
+    assert target not in {j["id"] for j in client.get("/api/jobs", params={"view": "all"}).json()["items"]}
+    client.patch(f"/api/jobs/{target}", json={"dismissed": False})
+    assert target in {j["id"] for j in client.get("/api/jobs", params={"view": "all"}).json()["items"]}
+
 
 def test_interviews_and_calendar(client):
     from datetime import UTC, datetime, timedelta
