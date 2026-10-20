@@ -140,6 +140,8 @@ def update_job(job_id: int, body: dict, profile: Profile = Depends(current_profi
             raise HTTPException(422, "deadline must look like 2026-11-30") from None
     if body.get("reopen"):  # "this job is still open" (the recheck was wrong)
         job.closed_at = None
+    if body.get("close"):  # "this job is gone" (you checked it yourself): hide it like an automatic recheck would
+        job.closed_at = now()
     db.commit()
     return job_summary(job, user_settings(profile)["min_score"])
 
