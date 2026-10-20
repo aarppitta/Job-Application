@@ -75,7 +75,7 @@ class Job(Base):
     company_url: Mapped[str | None] = mapped_column(String(1000))
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    original_description: Mapped[str] = mapped_column(Text)   # first JD ever seen, never changed
+    original_description: Mapped[str] = mapped_column(Text, deferred=True)   # first JD ever seen, never changed (loaded only when used)
     jd_hash: Mapped[str] = mapped_column(String(64), index=True)
     parsed: Mapped[dict] = mapped_column(JSON, default=dict)   # skills, requirements, salary, evidence...
     skills_text: Mapped[str] = mapped_column(Text, default="")  # ",python,fastapi," for simple filtering
@@ -114,7 +114,7 @@ class JDVersion(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     version: Mapped[int] = mapped_column(Integer)
-    text: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text, deferred=True)  # loaded only when used (lists and duplicate checks don't need it)
     jd_hash: Mapped[str] = mapped_column(String(64))
     source: Mapped[str | None] = mapped_column(String(50))
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
@@ -154,7 +154,7 @@ class Application(Base):
     jd_version: Mapped[int | None] = mapped_column(Integer)
     score: Mapped[float | None] = mapped_column(Float)
     cover_letter: Mapped[str | None] = mapped_column(Text)
-    tailored_cv: Mapped[bytes | None] = mapped_column(LargeBinary)  # the exact CV (.docx) you applied with (the standard CV)
+    tailored_cv: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)  # the exact CV (.docx) you applied with; loaded only for downloads
     notes: Mapped[str | None] = mapped_column(Text)
     history: Mapped[list] = mapped_column(JSON, default=list)   # [{"status", "at"}]
     interviews: Mapped[list] = mapped_column(JSON, default=list)  # [{"at": ISO datetime, "kind": "HR screen", "note"}]

@@ -92,7 +92,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: profile } = useFetch("/api/profile");
-  const { data: run } = useFetch<Run | null>("/api/automation/status", 10);
+  const { data: run } = useFetch<Run | null>("/api/automation/status", 30);
 
   useEffect(() => setDrawer(false), [location.pathname]);
   // Jobs group: open on any Jobs page; otherwise as you left it.

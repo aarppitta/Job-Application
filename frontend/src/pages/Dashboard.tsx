@@ -22,10 +22,10 @@ function greeting() {
 }
 
 export default function Dashboard() {
-  const { data } = useFetch("/api/dashboard", 10);
-  const { data: run } = useFetch<Run | null>("/api/automation/status", 5);
+  const { data } = useFetch("/api/dashboard", 60);   // refresh intervals kept low: every call costs database transfer
+  const { data: run } = useFetch<Run | null>("/api/automation/status", 30);
   const { data: profile } = useFetch("/api/profile");
-  const { data: apps } = useFetch<Application[]>("/api/applications", 30);
+  const { data: apps } = useFetch<Application[]>("/api/applications", 120);
   const { data: goal } = useFetch<any>("/api/strategy", 120);
 
   const counts: Record<string, number> = data?.counts ?? {};

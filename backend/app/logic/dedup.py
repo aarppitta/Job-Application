@@ -60,7 +60,7 @@ SPECIALISATIONS = {"frontend", "backend", "fullstack", "data", "devops", "qa", "
 
 
 def is_same_job(new: dict, old: dict) -> tuple[bool, str]:
-    """new/old: dicts with title, company, text, jd_hash, url, application_url, location."""
+    """new/old: dicts with title, company, text, jd_hash, url, application_url, location (old text may be a function)."""
     if new.get("url") and clean_url(new["url"]) == clean_url(old.get("url")):
         return True, "same URL"
     if new.get("application_url") and clean_url(new["application_url"]) == clean_url(old.get("application_url")):
@@ -79,7 +79,10 @@ def is_same_job(new: dict, old: dict) -> tuple[bool, str]:
     if ca and cb and ca != cb:
         return False, ""
     titles = title_similarity(new["title"], old["title"])
-    texts = text_similarity(new["text"], old["text"])
+    if titles < 0.25:
+        return False, ""  # clearly different roles: don't even load the old description
+    old_text = old["text"]() if callable(old["text"]) else old["text"]  # loaded lazily (database transfer)
+    texts = text_similarity(new["text"], old_text)
     if titles >= 0.99 and texts >= 0.6:
         return True, "same company and title"
     if titles >= 0.5 and texts >= 0.8:

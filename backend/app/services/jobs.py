@@ -24,9 +24,9 @@ def find_duplicate(db: Session, user_id: int, info: dict, company_key: str) -> t
         .limit(200).all()
     )
     for job in candidates:
-        latest = latest_version(db, job)
-        old = {"title": job.title, "company": job.company, "text": latest.text, "jd_hash": latest.jd_hash,
-               "url": job.source_url, "application_url": job.application_url, "location": job.location}
+        # job.jd_hash = the latest version's hash; the full text is loaded only if the comparison really needs it
+        old = {"title": job.title, "company": job.company, "text": lambda job=job: latest_version(db, job).text,
+               "jd_hash": job.jd_hash, "url": job.source_url, "application_url": job.application_url, "location": job.location}
         same, reason = dedup.is_same_job(info, old)
         if same:
             return job, reason
