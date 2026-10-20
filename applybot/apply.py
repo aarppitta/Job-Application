@@ -574,9 +574,10 @@ def apply_one(api: Api, browser, job: dict, profile: dict, answers: dict, boards
         return {**result, "result": "needs_you", "detail": "no application link"}
     letter = api.post(f"/api/jobs/{job['id']}/cover-letter")["text"]
     tmp = Path(tempfile.mkdtemp(prefix="applybot-"))
-    r = api.call("POST", f"/api/jobs/{job['id']}/cover-letter.docx", json={"text": letter})
-    letter_file = tmp / (re.search(r'filename="([^"]+)"', r.headers.get("content-disposition", "")) or [None, "Cover_Letter.docx"])[1]
-    letter_file.write_bytes(r.content)
+    from letter_pdf import write_letter_pdf  # cover letters go out as PDF (same layout everywhere), like the CV
+    who = re.sub(r"[^A-Za-z0-9]+", "_", profile["name"]).strip("_")
+    company = re.sub(r"[^A-Za-z0-9]+", "_", job["company"]).strip("_")[:40] or "Company"
+    letter_file = write_letter_pdf(letter, tmp / f"{who}_Cover_Letter_{company}.pdf", browser.browser_type)
 
     context = browser.new_context(locale="en-US", viewport={"width": 1280, "height": 1000})
     page = context.new_page()
