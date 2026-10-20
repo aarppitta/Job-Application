@@ -82,9 +82,23 @@ def load_answers(profile: dict) -> dict:
             "living_in_germany": "No", "willing_to_relocate": "Yes",
             "german_level": "None", "english_level": "C1",
             "gender": "", "public_official": "No", "how_did_you_hear": "Job board",
+            "birthday": "", "birthday_iso": "",
             "custom": [],
         }, indent=2))
     return json.loads(ANSWERS.read_text())
+
+
+def posted_salary(job: dict) -> dict:
+    """The salary range the job ad itself states (parsed by the app), as form answers; {} when none is given.
+    Tina's rule: when the JD names a budget, answer within that budget instead of her default expectation."""
+    s = (job.get("parsed") or {}).get("salary") or {}
+    lo, hi = s.get("min"), s.get("max")
+    if (s.get("currency") or "EUR").upper() != "EUR" or not lo or lo < 20000:  # monthly/hourly or non-EUR: don't guess
+        return {}
+    hi = hi if hi and hi >= lo else None
+    mid = round((lo + hi) / 2, -3) if hi else lo
+    text = f"EUR {lo:,.0f}-{hi:,.0f} per year" if hi else f"EUR {lo:,.0f} per year"
+    return {"salary_eur_per_year": int(mid), "salary_text": text}
 
 
 def facts(profile: dict, answers: dict, job: dict, letter: str) -> dict:
@@ -93,7 +107,7 @@ def facts(profile: dict, answers: dict, job: dict, letter: str) -> dict:
     exp = (profile.get("experience") or [{}])[0]
     worked_here = any(job["company"].lower()[:6] in (e.get("company") or "").lower() for e in profile.get("experience") or [])
     return {
-        **answers, "first": name[0], "last": " ".join(name[1:]), "full_name": profile["name"],
+        **answers, **posted_salary(job), "first": name[0], "last": " ".join(name[1:]), "full_name": profile["name"],
         "email": profile.get("email") or "", "phone": profile.get("phone") or "",
         "linkedin": profile.get("linkedin_url") or "", "github": profile.get("github_url") or "",
         "location": location, "city": location.split(",")[0].strip(), "country": location.split(",")[-1].strip(),
@@ -106,6 +120,14 @@ def facts(profile: dict, answers: dict, job: dict, letter: str) -> dict:
 MARKETING = r"newsletter|marketing|career related information|future (opportunit|position|vacanc|role)|talent (pool|community)|job alert|retain my data|keep me|updates|zukünftig|talentpool|demographic|diversity|survey"
 CONSENT = r"privacy|datenschutz|terms|agree|consent|einverstanden|zustimm|einwillig|acknowledge|confirm that|i have read|gelesen|declare|true,? correct|true and correct|wahr und richtig"
 DEMOGRAPHIC = r"ethnic|race|disabil|veteran|sexual orientation|demographic|diversity|gender identity|hispanic|behinderung"
+# "Which office are you applying to?": Tina wants the German offices (all of them when several can be picked)
+OFFICE_Q = r"\boffice|standort|arbeitsort|which (city|location|site|hub)|preferred (location|city|site|office)|work location|location.{0,30}(apply|prefer|work from)"
+GERMAN_PLACES = (r"germany|deutschland|berlin|munich|münchen|muenchen|hamburg|frankfurt|cologne|köln|koeln|düsseldorf|"
+                 r"duesseldorf|stuttgart|chemnitz|leipzig|dresden|hannover|hanover|nuremberg|nürnberg|bremen|essen|dortmund|"
+                 r"karlsruhe|mannheim|bonn|augsburg|freiburg|heidelberg|potsdam|regensburg|ulm|aachen|münster|wiesbaden|mainz|"
+                 r"kiel|jena|garching|ottobrunn|ingolstadt|darmstadt|braunschweig|wolfsburg|erlangen|bielefeld|walldorf")
+GERMAN_CITIES = ["Berlin", "Munich", "München", "Hamburg", "Frankfurt", "Cologne", "Köln", "Düsseldorf", "Stuttgart", "Chemnitz",
+                 "Leipzig", "Dresden", "Hannover", "Nuremberg", "Karlsruhe", "Germany", "Deutschland"]
 # (pattern on the question text, fact key); first match wins. The order matters ("first name" before "name").
 RULES = [
     (MARKETING, "decline"),
@@ -118,6 +140,7 @@ RULES = [
     (r"linkedin", "linkedin"),
     (r"github|portfolio|website|personal (site|page)", "github"),
     (r"salary|gehalt|compensation|vergütung|gehaltsvorstellung", "salary"),
+    (r"birthday|date of birth|birth ?date|geburtsdatum|geburtstag|\bdob\b", "birthday"),
     (r"available|availability|start date|earliest|notice period|kündigungsfrist|eintritt|verfügbar|when can you start", "start"),
     (r"sponsor|visa", "needs_visa_sponsorship"),
     (r"authori[sz]ed to work|work permit|right to work|permission to work|arbeitserlaubnis|eligible to work|work authori[sz]ation", "authorized_to_work_in_germany"),
@@ -152,6 +175,8 @@ def answer_for(q: str, kind: str, f: dict) -> str | None:
                 return str(f["salary_eur_per_year"]) if kind == "number" else f["salary_text"]
             if key == "start":
                 return f["earliest_start_iso"] if kind == "date" else f["earliest_start"]
+            if key == "birthday":  # birthday_iso for date fields, birthday (as you wrote it) for text fields
+                return (f.get("birthday_iso") if kind == "date" else f.get("birthday")) or None
             if key == "location" and kind == "combobox":
                 return f["city"]
             if key == "location" and kind in ("select", "radio"):
@@ -166,20 +191,31 @@ SYNONYMS = {"yes": ["yes", "ja", "true"], "no": ["no", "nein", "false"],
             "prefer not to say": ["prefer not", "rather not", "not to say", "keine angabe", "not specified", "decline", "do not wish", "don't wish", "möchte ich nicht"],
             "none": ["none", "no knowledge", "keine", "not at all", "no german", "a1", "a", "basic", "beginner", "grundkenntnisse"],
             "c1": ["c1", "fluent", "fließend", "professional", "verhandlungssicher", "advanced"],
-            "job board": ["job board", "jobbörse", "arbeitnow", "online", "website", "internet", "other", "sonstige"]}
+            "job board": ["job board", "jobbörse", "arbeitnow", "online", "website", "internet", "other", "sonstige"],
+            "female": ["female", "weiblich", "woman", "frau", "ms", "ms.", "mrs", "mrs."],
+            "google": ["google", "google search", "search engine", "suchmaschine", "internet search", "internet", "online",
+                       "website", "other", "sonstige"],
+            "need sponsorship": ["need sponsorship", "require sponsorship", "requires sponsorship", "visa sponsorship", "sponsor",
+                                 "need a visa", "require a visa", "visa required", "no work permit", "do not have", "don't have",
+                                 "not authori", "non-eu", "outside the eu", "other"]}
 
 
 def pick(options: list[str], answer: str) -> int | None:
-    """Index of the option that means `answer` (exact first, then starts-with, then contains), else None."""
+    """Index of the option that means `answer` (exact first, then starts-with, then contains), else None.
+    Catch-all words ("other", "sonstige") are only used when nothing more specific matches."""
     opts = [re.sub(r"\s+", " ", o).strip().lower() for o in options]
     wanted = SYNONYMS.get(answer.lower(), [answer.lower()])
-    for test in (lambda o, w: o == w, lambda o, w: o.startswith(w + " ") or o.startswith(w + ",") or o.startswith(w + "/"),
-                 lambda o, w: len(w) > 2 and w in o):
-        for w in wanted:
-            for i, o in enumerate(opts):
-                if o and test(o, w):
-                    return i
+    for words in ([w for w in wanted if w not in FALLBACK], [w for w in wanted if w in FALLBACK]):
+        for test in (lambda o, w: o == w, lambda o, w: o.startswith(w + " ") or o.startswith(w + ",") or o.startswith(w + "/"),
+                     lambda o, w: len(w) > 2 and w in o):
+            for w in words:
+                for i, o in enumerate(opts):
+                    if o and test(o, w):
+                        return i
     return None
+
+
+FALLBACK = {"other", "sonstige", "sonstiges", "andere"}
 
 
 # ------------------------------------------------------------------ the browser part
@@ -323,6 +359,14 @@ def fill_form(page, f: dict, cv: Path, letter_file: Path) -> tuple[list, list]:
         if kind != "file" and not (fld["required"] or kind in ("radio", "yesno", "checkbox")) and re.search(DEMOGRAPHIC + r"|gender|geschlecht|pronoun", q, re.I):
             continue  # optional diversity questions: leave empty
         key_text = f'{q} {fld["name"].replace("_", " ").replace("[", " ").replace("]", " ")}'
+        if kind in ("select", "radio", "checkbox", "combobox") and re.search(OFFICE_Q, q or "", re.I):
+            try:
+                chosen = choose_german_offices(page, loc, fld, fields, done_groups)
+            except PlaywrightError:
+                chosen = None
+            if chosen:
+                filled.append((q, chosen))
+                continue  # no German option: fall through to the normal answer (or "needs you")
         try:
             if kind == "file":
                 if re.search(r"cover|anschreiben|motivation", key_text, re.I):
@@ -400,7 +444,9 @@ def fill_form(page, f: dict, cv: Path, letter_file: Path) -> tuple[list, list]:
                         missing.append(q)
                     continue
             elif kind == "date":
-                loc.fill(answer if fld["type"] == "date" else datetime.strptime(f["earliest_start_iso"], "%Y-%m-%d").strftime("%m/%d/%Y"))
+                # native <input type=date> takes ISO; date-picker text boxes take MM/DD/YYYY (Greenhouse/Lever style)
+                iso = re.fullmatch(r"\d{4}-\d{2}-\d{2}", answer)
+                loc.fill(answer if fld["type"] == "date" or not iso else datetime.strptime(answer, "%Y-%m-%d").strftime("%m/%d/%Y"))
                 loc.press("Enter")
             else:
                 loc.fill(answer)
@@ -421,6 +467,44 @@ def check_box(loc) -> None:
             loc.click(force=True)
 
 
+def choose_german_offices(page, loc, fld: dict, fields: list[dict], done_groups: set) -> str | None:
+    """Office/location pickers: choose the German office(s); every German one when several may be selected.
+    Returns what was chosen, or None when the field offers no German place."""
+    kind = fld["kind"]
+    if kind == "select":
+        hits = [i for i, o in enumerate(fld["options"]) if (i > 0 or o.strip()) and re.search(GERMAN_PLACES, o, re.I)]
+        if not hits:
+            return None
+        if loc.evaluate("e => e.multiple"):
+            loc.select_option(index=hits)
+            return ", ".join(fld["options"][i] for i in hits)
+        loc.select_option(index=hits[0])
+        return fld["options"][hits[0]]
+    if kind in ("radio", "checkbox"):
+        group = fld["name"] or fld["q"]
+        members = [x for x in fields if (x["name"] or x["q"]) == group]
+        hits = [m for m in members if re.search(GERMAN_PLACES, m["label"] or "", re.I)]
+        if not hits:
+            return None
+        done_groups.add(group)
+        if kind == "radio":
+            hits = hits[:1]
+        for m in hits:
+            box = page.locator(f'[data-ab="{m["idx"]}"]')
+            box.check(force=True) if kind == "radio" else check_box(box)
+        return ", ".join(m["label"] for m in hits)
+    if kind == "combobox":
+        multi = loc.evaluate("e => e.getAttribute('aria-multiselectable') === 'true' || !!e.closest('[class*=\"multi\" i]')")
+        picked = []
+        for city in GERMAN_CITIES:
+            if choose_combobox(page, loc, city):
+                picked.append(city)
+                if not multi:
+                    break
+        return ", ".join(picked) or None
+    return None
+
+
 def choose_combobox(page, loc, answer: str) -> bool:
     """Type into a search-select and click the option that matches `answer`."""
     loc.click()
@@ -431,6 +515,11 @@ def choose_combobox(page, loc, answer: str) -> bool:
     i = pick(texts, answer) if texts else None
     if i is None and texts and len(answer) > 3:
         i = next((n for n, t in enumerate(texts) if t.lower().startswith(answer.lower()[:4])), None)
+    if i is None:  # the typed text filtered every option away: look at the full list and match by meaning (SYNONYMS)
+        loc.fill("")
+        page.wait_for_timeout(800)
+        texts = [t.strip() for t in options.all_inner_texts()]
+        i = pick(texts, answer) if texts else None
     if i is None:
         loc.fill("")
         page.keyboard.press("Escape")
@@ -499,7 +588,8 @@ def apply_one(api: Api, browser, job: dict, profile: dict, answers: dict, boards
         result["form_url"] = page.url
         if page.locator("input[type=password]:visible").count():
             return {**result, "result": "needs_you", "detail": "this site needs an account/login"}
-        filled, missing = fill_form(page, facts(profile, answers, job, letter), cv, letter_file)
+        filled, missing = fill_form(page, facts(profile, answers, {**job, "parsed": api.get(f"/api/jobs/{job['id']}").get("parsed")},
+                                                letter), cv, letter_file)
         result["answers"] = filled
         if not any(name == cv.name for _, name in filled):
             missing.append("CV upload field not found")
