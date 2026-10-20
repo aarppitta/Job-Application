@@ -3,7 +3,7 @@ import time
 from datetime import date
 
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.defaults import user_settings
 from app.logic import dedup
@@ -18,6 +18,8 @@ def find_duplicate(db: Session, user_id: int, info: dict, company_key: str) -> t
     """Look at jobs that could be the same vacancy and compare them."""
     candidates = (
         db.query(Job).join(Company, Company.id == Job.company_id, isouter=True)
+        .options(load_only(Job.id, Job.title, Job.company, Job.jd_hash, Job.source_url, Job.application_url,
+                           Job.location))  # only what the comparison needs (parsed JSON etc. stay in the database)
         .filter(Job.user_id == user_id)
         .filter(or_(Job.jd_hash == info["jd_hash"], Company.key == company_key,
                     Job.source_url == info["url"], Job.application_url == info["application_url"]))
