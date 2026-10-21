@@ -16,6 +16,13 @@ from app.sources import SOURCES, SourceBlocked, search
 
 def find_duplicate(db: Session, user_id: int, info: dict, company_key: str) -> tuple[Job | None, str]:
     """Look at jobs that could be the same vacancy and compare them."""
+    # Fast path (most search results are jobs we already have, under the very same link): one tiny query.
+    for column, value in ((Job.source_url, info["url"]), (Job.application_url, info["application_url"])):
+        if value:
+            hit = (db.query(Job).options(load_only(Job.id)).filter(Job.user_id == user_id, column == value)
+                   .order_by(Job.id).first())
+            if hit is not None:
+                return hit, "same URL" if column is Job.source_url else "same application URL"
     candidates = (
         db.query(Job).join(Company, Company.id == Job.company_id, isouter=True)
         .options(load_only(Job.id, Job.title, Job.company, Job.jd_hash, Job.source_url, Job.application_url,
