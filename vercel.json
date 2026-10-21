@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "regions": [
-    "fra1"
+    "hnd1"
   ],
   "installCommand": "cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
