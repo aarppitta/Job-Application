@@ -120,6 +120,10 @@ def facts(profile: dict, answers: dict, job: dict, letter: str) -> dict:
 MARKETING = r"newsletter|marketing|career related information|future (opportunit|position|vacanc|role)|talent (pool|community)|job alert|retain my data|keep me|updates|zukünftig|talentpool|demographic|diversity|survey"
 CONSENT = r"privacy|datenschutz|terms|agree|consent|einverstanden|zustimm|einwillig|acknowledge|confirm that|i have read|gelesen|declare|true,? correct|true and correct|wahr und richtig"
 DEMOGRAPHIC = r"ethnic|race|disabil|veteran|sexual orientation|demographic|diversity|gender identity|hispanic|behinderung"
+# "I consent to the use of AI for evaluating my candidacy": Tina answers No (checkboxes stay unticked)
+AI_EVALUATION = (r"\b(ai|artificial intelligence|automated (decision|processing|systems?))\b.{0,80}"
+                 r"(evaluat|assess|screen|review|candidacy|matching|bewert)|"
+                 r"(evaluat|assess|screen|bewert).{0,60}\b(ai|artificial intelligence|künstliche intelligenz|ki)\b")
 # "Which office are you applying to?": Tina wants the German offices (all of them when several can be picked)
 OFFICE_Q = r"\boffice|standort|arbeitsort|which (city|location|site|hub)|preferred (location|city|site|office)|work location|location.{0,30}(apply|prefer|work from)"
 GERMAN_PLACES = (r"germany|deutschland|berlin|munich|münchen|muenchen|hamburg|frankfurt|cologne|köln|koeln|düsseldorf|"
@@ -409,6 +413,10 @@ def fill_form(page, f: dict, cv: Path, letter_file: Path) -> tuple[list, list]:
                 if re.search(MARKETING, fld["label"] or q, re.I):
                     if fld["required"]:
                         missing.append(f"{text[:120]} (marketing/data box: never ticked)")
+                    continue
+                if re.search(AI_EVALUATION, f'{fld["label"]} {q}', re.I):  # Tina says No to AI screening
+                    if fld["required"]:
+                        missing.append(f"{text[:120]} (AI-evaluation consent: you said No)")
                     continue
                 if re.search(CONSENT, fld["label"] or q, re.I):
                     check_box(loc)
