@@ -23,8 +23,12 @@ export function useFetch<T = any>(path: string | null, refreshEverySeconds?: num
   useEffect(() => {
     reload();
     if (!refreshEverySeconds) return;
-    const timer = setInterval(reload, refreshEverySeconds * 1000);
-    return () => clearInterval(timer);
+    // Auto-refresh only while you are looking at the page: a tab left open in the background
+    // would otherwise keep asking the server (every call costs database transfer).
+    const timer = setInterval(() => { if (!document.hidden) reload(); }, refreshEverySeconds * 1000);
+    const onVisible = () => { if (!document.hidden) reload(); };  // catch up when you come back to the tab
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [reload, refreshEverySeconds]);
 
   return { data, error, loading, reload, setData };

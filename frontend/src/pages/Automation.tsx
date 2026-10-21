@@ -18,9 +18,9 @@ const RunStatus = ({ status }: { status: string }) => (
 );
 
 export default function Automation() {
-  const { data: run, reload } = useFetch<Run | null>("/api/automation/status", 3);
+  const { data: run, reload } = useFetch<Run | null>("/api/automation/status", 10);
   const { data: settings } = useFetch("/api/settings");
-  const { data: runs } = useFetch<Run[]>("/api/automation/runs", 15);
+  const { data: runs } = useFetch<Run[]>("/api/automation/runs", 60);
   const { data: info } = useFetch<{ mode: string; step_seconds: number }>("/api/info");
   const serverless = info?.mode === "serverless";
   const stepping = useRef(false);
@@ -57,9 +57,11 @@ export default function Automation() {
     if (settings) setConfig((c) => ({ ...c, ...Object.fromEntries(Object.keys(c).map((k) => [k, settings[k]])) }));
   }, [settings]);
 
-  // Ask for new log lines every 2 seconds.
+  // Ask for new log lines every 5 seconds, only while this tab is visible and a run is going.
   useEffect(() => {
     const timer = setInterval(async () => {
+      if (document.hidden || !run) return;
+      if (run.status !== "RUNNING" && run.id === runId.current && lastId.current > 0) return;  // finished: logs won't change
       if (run && run.id !== runId.current) {
         runId.current = run.id;
         lastId.current = 0;
@@ -70,7 +72,7 @@ export default function Automation() {
         lastId.current = fresh[fresh.length - 1].id;
         setLogs((old) => [...old, ...fresh].slice(-300));
       }
-    }, 2000);
+    }, 5000);
     return () => clearInterval(timer);
   }, [run]);
 
