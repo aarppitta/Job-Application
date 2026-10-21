@@ -3,12 +3,30 @@
 The full list with explanations is in `.env.example`. On Vercel, set them in Project → Settings → Environment Variables.
 """
 import os
+from urllib.parse import quote, unquote
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_SECRET = "change-me-in-the-env-file-to-a-long-random-text"
 DEFAULT_PASSWORD = "JobHunt@2026"
+
+
+def encode_password(url: str) -> str:
+    """'postgresql://user:p@ss@host/db' -> 'postgresql://user:p%40ss@host/db'.
+    Database passwords often contain @ : / # (Supabase, Neon); pasted unencoded they break the link. Idempotent."""
+    if "://" not in url:
+        return url
+    scheme, rest = url.split("://", 1)
+    slash = rest.find("/", rest.rfind("@") + 1) if "@" in rest else -1
+    netloc, tail = (rest[:slash], rest[slash:]) if slash != -1 else (rest, "")
+    if "@" not in netloc:
+        return url
+    userinfo, host = netloc.rsplit("@", 1)
+    if ":" not in userinfo:
+        return url
+    user, password = userinfo.split(":", 1)
+    return f"{scheme}://{user}:{quote(unquote(password), safe='')}@{host}{tail}"
 
 
 class Settings(BaseSettings):
@@ -55,6 +73,7 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def sqlalchemy_url(cls, url: str) -> str:
+        url = encode_password(url.strip())
         for prefix in ("postgres://", "postgresql://"):
             if url.startswith(prefix):
                 return "postgresql+psycopg://" + url[len(prefix):]

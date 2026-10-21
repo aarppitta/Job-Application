@@ -228,3 +228,14 @@ def test_skills_you_have_are_never_gaps():
     job = job_from("Full Stack Developer", "Requirements: JavaScript, React, Kubernetes and Python. Full-time, English.")
     gaps = {g["skill"] for g in skill_gaps(requirements(arpita(), job), {})}
     assert "JavaScript" not in gaps and "React" not in gaps and "Kubernetes" in gaps
+
+
+def test_database_url_password_with_special_characters():
+    from app.config import encode_password
+    raw = "postgresql://postgres.abc:Pa@ss/w#rd@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+    fixed = encode_password(raw)
+    assert fixed == "postgresql://postgres.abc:Pa%40ss%2Fw%23rd@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+    assert encode_password(fixed) == fixed                     # already encoded: unchanged
+    plain = "postgresql://user:simple@host.neon.tech/db?sslmode=require"
+    assert encode_password(plain) == plain
+    assert encode_password("postgresql+psycopg://localhost:5432/germany_jobs") == "postgresql+psycopg://localhost:5432/germany_jobs"
