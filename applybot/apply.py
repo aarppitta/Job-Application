@@ -671,6 +671,8 @@ def main():
             results.append(res)
             print(f"[{res['result']:>9}] {job['company']} · {job['title']} (#{job['id']}): {res.get('detail', '')}", flush=True)
             if args.submit:  # a dry run never blocks a later real run
+                # re-read before writing: entries added meanwhile (e.g. jobs you applied to by hand) must not be lost
+                ledger = {**ledger, **(json.loads(LEDGER.read_text()) if LEDGER.exists() else {})}
                 ledger[job_key(job)] = {k: res.get(k) for k in ("job_id", "company", "title", "result", "detail", "at", "form_url")}
                 LEDGER.write_text(json.dumps(ledger, indent=1))
             time.sleep(3)

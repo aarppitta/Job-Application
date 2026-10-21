@@ -16,7 +16,10 @@ class Settings(BaseSettings):
 
     # Database. Neon / Vercel give "postgresql://…?sslmode=require": it is converted for SQLAlchemy automatically.
     # The Neon integration on Vercel sets POSTGRES_URL / DATABASE_URL; both names work.
-    database_url: str = Field("postgresql+psycopg://localhost:5432/germany_jobs", validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL"))
+    # APP_DATABASE_URL wins over both: use it to point the app at another database (e.g. Supabase) without
+    # touching the variables a Vercel integration manages.
+    database_url: str = Field("postgresql+psycopg://localhost:5432/germany_jobs",
+                              validation_alias=AliasChoices("APP_DATABASE_URL", "DATABASE_URL", "POSTGRES_URL"))
     db_pool_size: int = 5
     auto_migrate: bool = True          # create tables + apply NEW_COLUMNS on start-up
 
