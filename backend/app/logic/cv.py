@@ -253,6 +253,9 @@ def standard_cv_docx(profile) -> bytes:
             par = doc.add_paragraph()
             par.paragraph_format.space_before, par.paragraph_format.keep_with_next = Pt(5), True
             _run(par, project["name"], 10.5, bold=True, color=DARK)
+            if project.get("url"):  # public code: one click for the recruiter
+                _run(par, "  ·  ", 9.5, color=GREY)
+                _link(par, project["url"].removeprefix("https://"), project["url"], 9.5, TEAL)
             if project.get("tech"):
                 par = doc.add_paragraph()
                 par.paragraph_format.keep_with_next = True

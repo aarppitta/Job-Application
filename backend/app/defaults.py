@@ -11,7 +11,7 @@ DEFAULT_PROFILE = {
     "availability": "Open to relocate · Open to remote work",
     # Gaps between jobs, shown in the experience timeline (her words, 2026-10-23).
     "career_breaks": [
-        {"dates": "December 2025 – April 2026", "text": "Career break — upskilling and family time"},
+        {"dates": "December 2025 – April 2026", "text": "Career break — upskilling and family time; built MERN-stack and Node.js microservices (RabbitMQ) projects, on GitHub"},
         {"dates": "December 2024 – August 2025", "text": "Career break — relocation from London, UK to India (04/2025)"},
     ],
     # CV "Key highlights": each one restates a fact from the experience/projects below (nothing new).
@@ -105,6 +105,15 @@ DEFAULT_PROFILE = {
              "L2 LineSync audit module: tamper-evident log of all system and user actions, with electronic audit trails and data integrity controls for pharma and regulated manufacturing compliance.",
              "Packaged the FastAPI backend as a standalone Windows executable using PyInstaller and registered it as a persistent background service via NSSM — enabling single-click deployment on production-floor machines with no Python environment dependency.",
          ]},
+        {"name": "Job Application — Job Search & Application Tracker", "tech": "Python · FastAPI · PostgreSQL · React · TypeScript · Playwright",
+         "url": "https://github.com/aarppitta/Job-Application",
+         "description": "Personal project: job discovery, CV matching and application tracking",
+         "skills": ["Python", "FastAPI", "PostgreSQL", "React", "TypeScript", "REST APIs"],
+         "bullets": [
+             "Web app that collects software jobs from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.",
+             "Scores each job against the CV, shows missing skills, and tracks applications, interviews and follow-ups.",
+             "Creates a CV and cover letters, and fills company application forms automatically (Playwright).",
+         ]},
         {"name": "OPC Server — Custom Industrial Data Gateway", "tech": "Python · Django · MySQL · OPC-UA · Modbus TCP/RTU · FINS Serial · FINS Ethernet",
          "description": "Open-source alternative to Kepware with pluggable protocol drivers",
          "skills": ["Python", "Django", "MySQL", "OPC", "OPC UA", "Modbus", "FINS", "PLC"],
@@ -135,14 +144,6 @@ DEFAULT_PROFILE = {
              "Angular-based SCADA application providing real-time operator screens for compression machines — machine status, process values, operator controls and parameter configuration.",
              "Defined the data interface contract between the Angular frontend and the LabVIEW backend layer — direct LabVIEW connectivity for faster real-time data exchange, with reliable state synchronisation and clean separation of concerns.",
              "Leading a junior developer on this project — component architecture, code review, integration testing approach and delivery planning.",
-         ]},
-        {"name": "Job Application — Job Search & Application Tracker", "tech": "Python · FastAPI · PostgreSQL · React · TypeScript · Playwright",
-         "description": "Personal project: job discovery, CV matching and application tracking",
-         "skills": ["Python", "FastAPI", "PostgreSQL", "React", "TypeScript", "REST APIs"],
-         "bullets": [
-             "Web app that collects software jobs from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.",
-             "Scores each job against the CV, shows missing skills, and tracks applications, interviews and follow-ups.",
-             "Creates a CV and cover letters, and fills company application forms automatically (Playwright).",
          ]},
     ],
 }
