@@ -52,7 +52,7 @@ Pharma Processing Machine — Configuration Tool (Python · config.ini · Indust
 - Python utility that generates config.ini files for pharma processing machines — specifying IP addresses, database connection settings and trigger bits required for machine data-logging services to initialise correctly.
 - Eliminates manual INI file editing errors through a structured, validated configuration workflow; deployed in a regulated pharma manufacturing environment ahead of production runs.
 
-Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIEW · Industrial SCADA Software)
+Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIEW connectivity · Industrial SCADA Software)
 - Angular-based SCADA application providing real-time operator screens for compression machines — machine status, process values, operator controls and parameter configuration.
 - Defined the data interface contract between the Angular frontend and the LabVIEW backend layer — direct LabVIEW connectivity for faster real-time data exchange, with reliable state synchronisation and clean separation of concerns.
 - Leading a junior developer on this project — component architecture, code review, integration testing approach and delivery planning.

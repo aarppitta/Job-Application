@@ -60,7 +60,7 @@ DEFAULT_PROFILE = {
         "Python", "FastAPI", "Django", "Angular", "TypeScript", "JavaScript", "Node.js", "Express.js", "MongoDB",
         "MySQL", "PostgreSQL", "REST APIs", "JWT", "RBAC", "AWS", "Agile", "Postman",
         "SCADA", "WebSCADA", "OPC", "OPC UA", "Modbus", "FINS", "PLC", "IIoT", "21 CFR Part 11",
-        "PyInstaller", "Windows Services", "LabVIEW",
+        "PyInstaller", "Windows Services", "LabVIEW connectivity",
         # from the project brief (not on the CV)
         "React", "Docker", "Git",
     ]],
@@ -106,9 +106,9 @@ DEFAULT_PROFILE = {
              "Python utility that generates config.ini files for pharma processing machines — specifying IP addresses, database connection settings and trigger bits required for machine data-logging services to initialise correctly.",
              "Eliminates manual INI file editing errors through a structured, validated configuration workflow; deployed in a regulated pharma manufacturing environment ahead of production runs.",
          ]},
-        {"name": "Compression Machine Interface — Angular SCADA", "tech": "Angular · TypeScript · LabVIEW · Industrial SCADA Software",
+        {"name": "Compression Machine Interface — Angular SCADA", "tech": "Angular · TypeScript · LabVIEW connectivity · Industrial SCADA Software",
          "description": "Operator screens with direct, faster LabVIEW connectivity",
-         "skills": ["Angular", "TypeScript", "SCADA", "LabVIEW"],
+         "skills": ["Angular", "TypeScript", "SCADA", "LabVIEW connectivity"],
          "bullets": [
              "Angular-based SCADA application providing real-time operator screens for compression machines — machine status, process values, operator controls and parameter configuration.",
              "Defined the data interface contract between the Angular frontend and the LabVIEW backend layer — direct LabVIEW connectivity for faster real-time data exchange, with reliable state synchronisation and clean separation of concerns.",

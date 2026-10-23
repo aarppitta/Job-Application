@@ -23,6 +23,8 @@ SKILL_GROUPS = {
     "Databases & cloud": ["MySQL", "PostgreSQL", "MongoDB", "AWS"],
     "Tools & practices": ["REST APIs", "JWT", "RBAC", "PyInstaller", "Windows Services", "Docker", "Git", "Postman", "Agile"],
 }
+# How a stored (canonical) skill is written on the CV. She connects to LabVIEW but doesn't program in it (user, 2026-10-23).
+SKILL_DISPLAY = {"LabVIEW": "LabVIEW connectivity"}
 MONTHS = {m: i + 1 for i, m in enumerate(["january", "february", "march", "april", "may", "june", "july",
                                          "august", "september", "october", "november", "december"])}
 
@@ -105,7 +107,7 @@ def skill_groups(skills: list[str]) -> list[tuple[str, list[str]]]:
     groups = [(name, [s for s in members if s in skills]) for name, members in SKILL_GROUPS.items()]
     known = {s for members in SKILL_GROUPS.values() for s in members}
     groups.append(("Other", [s for s in skills if s not in known]))
-    return [(name, members) for name, members in groups if members]
+    return [(name, [SKILL_DISPLAY.get(s, s) for s in members]) for name, members in groups if members]
 
 
 def standard_cv_docx(profile) -> bytes:
