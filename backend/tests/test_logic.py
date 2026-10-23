@@ -250,3 +250,26 @@ def test_remote_jobs_anywhere_in_the_eu_are_wanted():
     assert not wanted("Amsterdam, Netherlands")            # on-site outside Germany
     assert not wanted("Remote - United States") and not wanted("London (remote)") and not wanted("Remote")
     assert detect_country("Neu-Ulm") != "Europe" and is_eu_remote("Warsaw, Poland", True)
+
+
+def test_remote_europe_sources(monkeypatch):
+    from app import sources
+    label = sources._remote_label
+    assert label([]) == "Remote (worldwide)" and label(["Anywhere in the World"]) == "Remote (worldwide)"
+    assert label(["Belgium", "Spain"]) == "Remote (Europe)" and label(["EMEA Only"]) == "Remote (Europe)"
+    assert label(["Germany", "France"]) == "Remote (Germany)"
+    assert label(["United States"]) is None and label(["USA Only"]) is None and label(["India"]) is None
+
+    class R:
+        def __init__(self, data): self.data = data
+        def json(self): return self.data
+    feed = {"jobs": [
+        {"id": "ashby:goreel:abc-1", "company": "GoReel", "title": "Senior Python Developer", "eu_status": "eu_wide", "eligible": [],
+         "skills": ["Python", "FastAPI"], "locations": ["Remote, EU"], "published_at": "2026-10-20T10:00:00+00:00"},
+        {"id": "lever:usco:xyz", "company": "US Co", "title": "Python Developer", "eu_status": "unknown", "eligible": ["US"], "skills": []},
+        {"id": "unknownats:foo:1", "company": "Foo", "title": "Python Developer", "eu_status": "worldwide", "eligible": [], "skills": []},
+    ]}
+    monkeypatch.setattr(sources, "get_cached", lambda *a, **k: R(feed))
+    [job] = sources.workremotely_eu("Python Developer", [])
+    assert job["application_url"] == "https://jobs.ashbyhq.com/goreel/abc-1" and job["location"] == "Remote (Europe)"
+    assert "FastAPI" in job["description"]      # skills become the (short) description; US-only and link-less jobs are dropped

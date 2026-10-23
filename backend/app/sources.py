@@ -565,6 +565,139 @@ def recruiters(query: str, sites: list[str]) -> list[dict]:
     return jobs
 
 
+# ------------------------------------------------------------------ Remote jobs in Europe (user's list, 2026-10-23)
+# Checked 2026-10-23: Himalayas = official search API, We Work Remotely = official RSS, workremotely.eu = public JSON
+# (/api/jobs, robots.txt allows it), OpenJobsEU = public feed.json, RemoteBoard = job sitemap + job pages (robots.txt
+# allows /jobs/<slug>, not /apply/). Wellfound (bots forbidden), hiddenremote.io and psstjobs (job data under
+# robots-disallowed /api/ and /data/) and rolefinder.co (403) are search links on the Job boards page only.
+# Only jobs you can do remotely from the EU are kept: worldwide, Europe/EU/EMEA, or a country list that includes Europe.
+EUROPE = {"austria", "belgium", "bulgaria", "croatia", "cyprus", "czechia", "czech republic", "denmark", "estonia", "finland",
+          "france", "germany", "greece", "hungary", "ireland", "italy", "latvia", "lithuania", "luxembourg", "malta",
+          "netherlands", "poland", "portugal", "romania", "slovakia", "slovenia", "spain", "sweden", "norway", "iceland",
+          "liechtenstein", "switzerland", "united kingdom"}
+EU_CODES = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT",
+            "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"}
+OPEN_TO_EU = re.compile(r"anywhere|worldwide|world|global|europe|\beu\b|emea|cet\b|germany|deutschland", re.I)
+
+
+def _remote_label(places: list[str]) -> str | None:
+    """'Remote (Germany)' / 'Remote (Europe)' / 'Remote (worldwide)', or None when the job is not open to the EU."""
+    names = [p.strip() for p in places if p and p.strip()]
+    if not names:
+        return "Remote (worldwide)"
+    if any(simplify(n) in ("germany", "deutschland") for n in names):
+        return "Remote (Germany)"
+    if any(re.search(r"anywhere|worldwide|\bworld\b|global", n, re.I) for n in names):
+        return "Remote (worldwide)"
+    if any(simplify(n) in EUROPE for n in names) or any(OPEN_TO_EU.search(n) for n in names):
+        return "Remote (Europe)"
+    return None
+
+
+def himalayas(query: str, _companies: list[str]) -> list[dict]:
+    """himalayas.app official job search API (20 results per keyword)."""
+    r = get_cached("himalayas", "https://himalayas.app/jobs/api/search", {"q": "" if query == "*" else query})
+    jobs = []
+    for j in (r.json().get("jobs", []) if r else []):
+        place = _remote_label(j.get("locationRestrictions") or [])
+        expires = parse_date(j.get("expiryDate"))
+        if not place or (expires and expires < datetime.now(UTC)) or not matches(query, j.get("title", ""), j.get("description") or ""):
+            continue
+        url = j.get("applicationLink") or j.get("guid")
+        jobs.append({"source": "himalayas", "title": j["title"], "company": j.get("companyName") or "Unknown",
+                     "description": j.get("description") or j.get("excerpt") or "", "location": place,
+                     "source_url": j.get("guid") or url, "application_url": url, "posted_at": parse_date(j.get("pubDate"))})
+    return jobs
+
+
+def weworkremotely(query: str, _companies: list[str]) -> list[dict]:
+    """weworkremotely.com official RSS (all categories), filtered by your role and region."""
+    jobs = []
+    for item in rss_items(get_cached("weworkremotely", "https://weworkremotely.com/remote-jobs.rss")):
+        company, _, title = html.unescape(item.findtext("title") or "").partition(": ")
+        title, company = (title or company).strip(), company.strip() if title else "Unknown"
+        place = _remote_label([item.findtext("region") or ""])
+        description = item.findtext("description") or ""
+        if place and matches(query, title, html_to_text(description)):
+            link = item.findtext("link")
+            jobs.append({"source": "weworkremotely", "title": title, "company": company, "description": description,
+                         "location": place, "source_url": link, "application_url": link, "posted_at": rss_date(item)})
+    return jobs
+
+
+# workremotely.eu gives the job's own ATS id ("ashby:trm-labs:<id>") instead of a link: these are the official job pages
+ATS_LINKS = {"ashby": "https://jobs.ashbyhq.com/{c}/{i}", "greenhouse": "https://job-boards.greenhouse.io/{c}/jobs/{i}",
+             "lever": "https://jobs.lever.co/{c}/{i}", "personio": "https://{c}.jobs.personio.de/job/{i}",
+             "smartrecruiters": "https://jobs.smartrecruiters.com/{c}/{i}", "workable": "https://apply.workable.com/{c}/j/{i}",
+             "recruitee": "https://{c}.recruitee.com/o/{i}"}
+
+
+def workremotely_eu(query: str, _companies: list[str]) -> list[dict]:
+    """workremotely.eu public job list (EU-remote eligibility per job). It has no full job text, only the skills,
+    so these jobs are saved with a short description (and marked as incomplete by the parser)."""
+    r = get_cached("workremotely_eu", "https://workremotely.eu/api/jobs")
+    jobs = []
+    for j in (r.json().get("jobs", []) if r else []):
+        eligible = set(j.get("eligible") or [])
+        if not (j.get("eu_status") in ("eu_wide", "worldwide", "emea") or eligible & EU_CODES):
+            continue
+        skills = ", ".join(j.get("skills") or [])
+        if not matches(query, j.get("title", ""), skills):
+            continue
+        ats, _, rest = str(j.get("id", "")).partition(":")
+        company_slug, _, job_id = rest.partition(":")
+        url = ATS_LINKS[ats].format(c=company_slug, i=job_id) if ats in ATS_LINKS and job_id else None
+        if not url:
+            continue  # no official link to apply
+        where = "Remote (Germany)" if "DE" in eligible else "Remote (Europe)"
+        description = (f"Skills: {skills}. Locations: {', '.join(j.get('locations') or [])}. "
+                       f"Employment: {j.get('employment_type') or ''}. Seniority: {j.get('seniority') or ''}.")
+        jobs.append({"source": "workremotely_eu", "title": j["title"], "company": j.get("company") or company_slug,
+                     "description": description, "location": where, "source_url": url, "application_url": url,
+                     "posted_at": parse_date(j.get("published_at"))})
+    return jobs
+
+
+def openjobseu(query: str, _companies: list[str]) -> list[dict]:
+    """openjobseu.org public feed (EU remote job board): title, company, official job link and full text."""
+    r = get_cached("openjobseu", "https://openjobseu.org/feed.json")
+    jobs = []
+    for j in (r.json().get("jobs", []) if r else []):
+        place = _remote_label([j.get("remote_scope") or "Europe"]) or "Remote (Europe)"  # the whole board is EU-remote
+        if not matches(query, j.get("title", ""), j.get("description") or "") or not j.get("url"):
+            continue
+        jobs.append({"source": "openjobseu", "title": j["title"], "company": j.get("company") or "Unknown",
+                     "description": j.get("description") or "", "location": place, "source_url": j["url"],
+                     "application_url": j["url"], "posted_at": parse_date(j.get("first_seen_at"))})
+    return jobs
+
+
+def remoteboard(query: str, _companies: list[str]) -> list[dict]:
+    """remoteboard.com: job URLs from its sitemap; only pages whose URL words match your role are opened (max
+    PER_QUERY), and only jobs open to Europe are kept. Its pages give title, company and a short summary."""
+    base, jobs = "https://remoteboard.com", []
+    urls = _sitemap_job_urls(base, r"^/jobs/[a-z0-9-]+-\d+/?$")
+    candidates = [u for u in urls if query == "*" or matches(query, urlparse(u).path.rsplit("/", 1)[-1].replace("-", " "), "")]
+    for url in candidates[:PER_QUERY]:
+        if not _allowed(base, url):
+            continue
+        page = get_cached("remoteboard", url)
+        head = re.search(r"<title>(.*?)</title>", page.text, re.S) if page else None
+        summary = re.search(r'name="description" content="([^"]*)"', page.text) if page else None
+        if not head:
+            continue
+        title, _, company = html.unescape(head.group(1)).split(" | ")[0].rpartition(" at ")
+        summary_text = html.unescape(summary.group(1)) if summary else ""
+        where = summary_text.split(". ")[1] if ". " in summary_text else ""   # "…at Zego. Europe, $81k to $97k. …"
+        place = _remote_label([where]) if where else None
+        if not title or not place:
+            continue
+        if matches(query, title, summary_text):
+            jobs.append({"source": "remoteboard", "title": title.strip(), "company": company.strip() or "Unknown",
+                         "description": summary_text, "location": place, "source_url": url, "application_url": url, "posted_at": None})
+    return jobs
+
+
 # ------------------------------------------------------------------ Demo (fictional, for trying the app)
 
 DEMO_JOBS = [
@@ -610,6 +743,11 @@ SOURCES = {
     "workday": (workday, "workday_sites"),
     "amazon": (amazon, None),
     "recruiters": (recruiters, "recruiter_sites"),
+    "himalayas": (himalayas, None),
+    "weworkremotely": (weworkremotely, None),
+    "workremotely_eu": (workremotely_eu, None),
+    "openjobseu": (openjobseu, None),
+    "remoteboard": (remoteboard, None),
     "arbeitnow": (arbeitnow, None),
     "berlinstartupjobs": (berlinstartupjobs, None),
     "munichstartup": (munichstartup, None),

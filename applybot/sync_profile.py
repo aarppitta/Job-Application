@@ -39,7 +39,8 @@ def main():
         sys.exit("This app ignored the CV fields: deploy the new version first (it accepts experience/projects).")
     current = api.get("/api/settings")
     body = {"search_queries": DEFAULT_SETTINGS["search_queries"],
-            "sources": list(dict.fromkeys(current["sources"] + ["workday", "amazon", "recruiters"]))}
+            "sources": list(dict.fromkeys(current["sources"] + ["workday", "amazon", "recruiters", "himalayas", "weworkremotely",
+                                                                "workremotely_eu", "openjobseu", "remoteboard"]))}
     body.update({k: list(dict.fromkeys(current.get(k, []) + DEFAULT_SETTINGS[k])) for k in COMPANY_LISTS})
     settings = api.call("PATCH", "/api/settings", json=body).json()
     print(f"OK: email {profile['email']}, {len(profile['education'])} degrees, {len(settings['search_queries'])} job roles, "

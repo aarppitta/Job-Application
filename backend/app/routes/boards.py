@@ -100,7 +100,24 @@ def boards(q: str, enabled: set[str], settings: dict) -> list[dict]:
     employers.insert(1, {"name": "Bosch", "kind": "automatic", "why": "Read automatically via its SmartRecruiters API", "url": None})
     employers.insert(2, {"name": "Deutsche Bank, NVIDIA, Airbus, Accenture, Morgan Stanley, Citi…", "kind": auto("workday"),
                          "why": "Read automatically from their Workday careers sites (Settings → Workday career sites)", "url": None})
-    return [{"group": "Germany", "boards": germany}, {"group": "Cities (startup boards)", "boards": cities}, {"group": "Europe", "boards": europe}, {"group": "Direct employers", "boards": employers}]
+    remote = [  # remote jobs open to the EU (user's list, 2026-10-23)
+        {"name": "Himalayas", "kind": auto("himalayas"), "why": "Official job search API; only jobs open to Europe / worldwide",
+         "url": f"https://himalayas.app/jobs/worldwide?q={quote(q)}"},
+        {"name": "We Work Remotely", "kind": auto("weworkremotely"), "why": "Official RSS feed; only 'Anywhere' / Europe / EMEA jobs",
+         "url": f"https://weworkremotely.com/remote-jobs/search?term={quote(q)}"},
+        {"name": "workremotely.eu", "kind": auto("workremotely_eu"), "why": "Public job list with EU eligibility per job (no full job text)",
+         "url": "https://workremotely.eu/"},
+        {"name": "OpenJobsEU", "kind": auto("openjobseu"), "why": "EU remote job board, public feed with full job text", "url": "https://openjobseu.org/"},
+        {"name": "RemoteBoard", "kind": auto("remoteboard"), "why": "Job pages from its sitemap (robots.txt allows them); only jobs open to Europe",
+         "url": "https://remoteboard.com/"},
+        {"name": "Wellfound (remote)", "kind": "link", "why": "Startups (no API; bots forbidden)", "url": "https://wellfound.com/candidates/remote"},
+        {"name": "Hidden Remote", "kind": "link", "why": "Job data is behind robots-disallowed /api/: search it yourself", "url": "https://hiddenremote.io/"},
+        {"name": "Psst Jobs (Europe)", "kind": "link", "why": "Job data is behind robots-disallowed /data/: search it yourself",
+         "url": "https://psstjobs.com/remote-jobs/europe/"},
+        {"name": "Rolefinder", "kind": "link", "why": "Blocks automatic access (HTTP 403): search it yourself", "url": "https://rolefinder.co/"},
+    ]
+    return [{"group": "Germany", "boards": germany}, {"group": "Cities (startup boards)", "boards": cities}, {"group": "Europe", "boards": europe},
+            {"group": "Remote in Europe", "boards": remote}, {"group": "Direct employers", "boards": employers}]
 
 
 @router.get("/job-boards")

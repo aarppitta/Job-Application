@@ -174,7 +174,9 @@ def test_recruiters_page_and_pitch(client):
 def test_job_boards_page(client):
     data = client.get("/api/job-boards", params={"q": "Python Developer"}).json()
     groups = {g["group"]: g["boards"] for g in data["groups"]}
-    assert set(groups) == {"Germany", "Cities (startup boards)", "Europe", "Direct employers"}
+    assert set(groups) == {"Germany", "Cities (startup boards)", "Europe", "Remote in Europe", "Direct employers"}
+    remote = {b["name"]: b["kind"] for b in groups["Remote in Europe"]}
+    assert remote["Himalayas"] == "automatic" and remote["Wellfound (remote)"] == "link" and len(remote) == 9
     cities = {b["name"]: b for b in groups["Cities (startup boards)"]}
     assert cities["Berlin Startup Jobs"]["kind"] == "automatic" and cities["englishjobs.de"]["kind"] == "link"
     names = {b["name"]: b for b in groups["Germany"]}

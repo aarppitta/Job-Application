@@ -1,7 +1,8 @@
 # Job Application
 
 Finds software and industrial jobs in Germany by your keywords (official job APIs of 75+ company career sites, incl.
-Workday and Amazon, plus public job feeds), saves every job description, scores each job against your CV, and gives you
+Workday and Amazon, plus public job feeds, and remote-in-Europe boards: Himalayas, We Work Remotely, workremotely.eu,
+OpenJobsEU, RemoteBoard), saves every job description, scores each job against your CV, and gives you
 **one standard CV** (German/EU format) and a **cover letter** for any job. You apply on the company site, click
 **Mark as applied**, and the app keeps what you sent and tracks the status (table, board and calendar).
 **Recruiter jobs** lists the roles that recruitment agencies advertise (read from their own job pages), ready to apply.

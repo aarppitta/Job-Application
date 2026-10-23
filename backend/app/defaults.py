@@ -133,7 +133,8 @@ DEFAULT_SETTINGS = {
     "repeat_every_minutes": 30,       # the automation searches again after this pause
     "daily_auto_start": True,         # start the automation by itself every day...
     "daily_start_time": "08:00",      # ...at this time (computer's local time), as long as the backend is running
-    "sources": ["greenhouse", "lever", "smartrecruiters", "personio", "ashby", "workday", "amazon", "recruiters", "arbeitnow",
+    "sources": ["greenhouse", "lever", "smartrecruiters", "personio", "ashby", "workday", "amazon", "recruiters",
+                "himalayas", "weworkremotely", "workremotely_eu", "openjobseu", "remoteboard", "arbeitnow",
                 "berlinstartupjobs", "munichstartup", "startupcityhamburg"],
     # Job roles to search for. JOB_KEYWORDS in .env replaces this list on another computer.
     "search_queries": [k.strip() for k in settings.job_keywords.split(",") if k.strip()] or [

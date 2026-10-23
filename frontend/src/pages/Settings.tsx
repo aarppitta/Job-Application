@@ -193,7 +193,7 @@ export default function Settings() {
       <Card title="Where to search" subtitle="Sources and the companies whose careers pages are read" icon={Globe}
         right={<Button kind="primary" icon={Save} loading={busy === "where"} onClick={() => save("settings", "where")}>Save</Button>}>
         <div className="grid gap-4 md:grid-cols-2">
-          {list("sources", "Automatic sources (greenhouse, lever, smartrecruiters, personio, ashby, workday, amazon, arbeitnow, berlinstartupjobs, munichstartup, startupcityhamburg, demo)")}
+          {list("sources", "Automatic sources (greenhouse, lever, smartrecruiters, personio, ashby, workday, amazon, recruiters, himalayas, weworkremotely, workremotely_eu, openjobseu, remoteboard, arbeitnow, berlinstartupjobs, munichstartup, startupcityhamburg, demo)")}
           {list("greenhouse_boards", "Greenhouse companies (boards.greenhouse.io/NAME)")}
           {list("lever_companies", "Lever companies (jobs.lever.co/NAME)")}
           {list("smartrecruiters_companies", "SmartRecruiters companies (jobs.smartrecruiters.com/NAME)")}
