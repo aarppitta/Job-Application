@@ -54,6 +54,26 @@ class Api:
     def post(self, path: str, body: dict | None = None):
         return self.call("POST", path, json=body or {}).json()
 
+    def patch(self, path: str, body: dict | None = None):
+        return self.call("PATCH", path, json=body or {}).json()
+
+
+# Tina's targeting (from the job title): junior/mid software roles only. These are hidden, never applied to.
+OFF_PROFILE = [
+    ("senior/lead", r"\b(senior|sr\.?|staff|lead|principal|head of|architect|director|manager)\b"),
+    ("embedded/low-level", r"\b(embedded|firmware|low[- ]level|fpga|kernel|real[- ]time)\b|\bc\+\+|\brust\b"),
+    ("Java/.NET/Go/iOS", r"\bjava\b(?!script)|\bkotlin\b|\.net\b|\bc#|\bgolang\b|\bgo\)|\bios\b|\bswift\b"),
+    ("AI/ML-heavy", r"\b(ai|ml|machine learning|genai|llm)\b"),
+    ("not development", r"\b(analyst|consultant|sales|support engineer|field application|technician|mechanic|hardware|recruiter)\b"),
+]
+
+
+def off_profile(title: str) -> str | None:
+    for why, rx in OFF_PROFILE:
+        if re.search(rx, title or "", re.I):
+            return why
+    return None
+
 
 def candidates(api: Api, threshold: float) -> list[dict]:
     """Good matches (score ≥ threshold, not held back) you have not applied to, best first."""
@@ -662,6 +682,14 @@ def main():
         jobs = [j for j in jobs if not j["application_status"]]
     else:
         jobs = [j for j in candidates(api, settings["min_score"]) if args.retry or job_key(j) not in ledger]
+        off = [(j, why) for j in jobs if (why := off_profile(j["title"]))]
+        for j, why in off:   # Tina's targeting rules: hide instead of applying
+            print(f"  skip (off-profile: {why}): {j['company']} · {j['title']}")
+            try:
+                api.patch(f"/api/jobs/{j['id']}", {"dismissed": True})
+            except Exception:
+                pass
+        jobs = [j for j in jobs if not off_profile(j["title"])]
     jobs = [j for j in jobs if (ledger.get(job_key(j)) or {}).get("result") != "applied"]  # never twice, local or live app
     shots = HOME / "screenshots"
     shots.mkdir(exist_ok=True)
