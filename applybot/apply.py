@@ -60,11 +60,13 @@ class Api:
 
 # Tina's targeting (from the job title): junior/mid software roles only. These are hidden, never applied to.
 OFF_PROFILE = [
-    ("senior/lead", r"\b(senior|sr\.?|staff|lead|principal|head of|architect|director|manager)\b"),
+    ("senior/lead", r"\b(senior|sr\.?|staff|lead|principal|head of|architect|director|manager|expert|experienced)\b|\b(iii|iv)\b"),
     ("embedded/low-level", r"\b(embedded|firmware|low[- ]level|fpga|kernel|real[- ]time)\b|\bc\+\+|\brust\b"),
     ("Java/.NET/Go/iOS", r"\bjava\b(?!script)|\bkotlin\b|\.net\b|\bc#|\bgolang\b|\bgo\)|\bios\b|\bswift\b"),
-    ("AI/ML-heavy", r"\b(ai|ml|machine learning|genai|llm)\b"),
-    ("not development", r"\b(analyst|consultant|sales|support engineer|field application|technician|mechanic|hardware|recruiter)\b"),
+    ("other stack", r"\b(android|ruby|rails|odoo|php|scala|elixir|salesforce|sap|sharepoint|microsoft 365)\b"),
+    ("AI/ML-heavy", r"\b(ai|ml|machine learning|genai|llm|agentic|agents?)\b"),
+    ("not development", r"\b(analyst|analytics engineer|consultant|sales|support engineer|customer success|field application|"
+                        r"technician|mechanic|hardware|recruiter|appsec|security engineer|talent pool|weekend)\b"),
 ]
 
 
