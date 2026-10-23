@@ -80,7 +80,29 @@ OTHER_COUNTRIES = {
     "netherlands": "Netherlands", "amsterdam": "Netherlands", "poland": "Poland", "united kingdom": "United Kingdom",
     "london": "United Kingdom", "usa": "United States", "united states": "United States", "india": "India",
     "france": "France", "paris": "France", "spain": "Spain",
+    "belgium": "Belgium", "brussels": "Belgium", "luxembourg": "Luxembourg", "ireland": "Ireland", "dublin": "Ireland",
+    "portugal": "Portugal", "lisbon": "Portugal", "italy": "Italy", "milan": "Italy", "denmark": "Denmark",
+    "copenhagen": "Denmark", "sweden": "Sweden", "stockholm": "Sweden", "finland": "Finland", "helsinki": "Finland",
+    "estonia": "Estonia", "tallinn": "Estonia", "latvia": "Latvia", "lithuania": "Lithuania", "czech": "Czechia",
+    "czechia": "Czechia", "prague": "Czechia", "slovakia": "Slovakia", "hungary": "Hungary", "budapest": "Hungary",
+    "romania": "Romania", "bulgaria": "Bulgaria", "greece": "Greece", "croatia": "Croatia", "slovenia": "Slovenia",
+    "cyprus": "Cyprus", "malta": "Malta", "warsaw": "Poland", "barcelona": "Spain", "madrid": "Spain",
+    "europe": "Europe", "european union": "Europe", "eu": "Europe", "emea": "Europe", "eea": "Europe",
 }
+# Tina applies to Germany on site, and to remote jobs anywhere in the EU (or "Remote, Europe").
+EU_COUNTRIES = {
+    "Germany", "Austria", "Netherlands", "Poland", "France", "Spain", "Belgium", "Luxembourg", "Ireland", "Portugal",
+    "Italy", "Denmark", "Sweden", "Finland", "Estonia", "Latvia", "Lithuania", "Czechia", "Slovakia", "Hungary",
+    "Romania", "Bulgaria", "Greece", "Croatia", "Slovenia", "Cyprus", "Malta", "Europe",
+}
+REMOTE_WORDS = r"\b(remote|anywhere|work from home|home ?office|distributed|fully remote)\b"
+
+
+def is_eu_remote(location: str | None, remote: bool = False) -> bool:
+    """'Remote - Europe', 'Amsterdam (remote)', 'EU Remote', or any EU place flagged remote by the job board."""
+    text = simplify(location or "")
+    is_remote = remote or bool(re.search(REMOTE_WORDS, text))
+    return is_remote and (detect_country(location) in EU_COUNTRIES)
 
 
 def detect_country(location: str | None) -> str | None:

@@ -239,3 +239,14 @@ def test_database_url_password_with_special_characters():
     plain = "postgresql://user:simple@host.neon.tech/db?sslmode=require"
     assert encode_password(plain) == plain
     assert encode_password("postgresql+psycopg://localhost:5432/germany_jobs") == "postgresql+psycopg://localhost:5432/germany_jobs"
+
+
+def test_remote_jobs_anywhere_in_the_eu_are_wanted():
+    from app.logic.jd_parser import is_eu_remote
+    from app.sources import wanted
+    assert wanted("Berlin, Germany") and wanted("Munich (hybrid)")
+    assert wanted("Remote - Europe") and wanted("EU Remote") and wanted("Remote, EMEA")
+    assert wanted("Amsterdam, Netherlands", remote=True) and wanted("Lisbon, Portugal (remote)")
+    assert not wanted("Amsterdam, Netherlands")            # on-site outside Germany
+    assert not wanted("Remote - United States") and not wanted("London (remote)") and not wanted("Remote")
+    assert detect_country("Neu-Ulm") != "Europe" and is_eu_remote("Warsaw, Poland", True)

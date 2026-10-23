@@ -23,7 +23,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from app.logic.jd_parser import detect_country, html_to_text, simplify
+from app.logic.jd_parser import detect_country, html_to_text, is_eu_remote, simplify
 
 USER_AGENT = "JobApplication/1.0 (personal job search)"
 
@@ -91,6 +91,11 @@ def in_germany(location: str | None) -> bool:
     return detect_country(location) == "Germany"
 
 
+def wanted(location: str | None, remote: bool = False) -> bool:
+    """Germany (any work mode), or a remote job anywhere in the EU / "Remote, Europe"."""
+    return in_germany(location) or is_eu_remote(location, remote)
+
+
 def parse_date(value) -> datetime | None:
     try:
         if isinstance(value, (int, float)):
@@ -111,7 +116,7 @@ def greenhouse(query: str, boards: list[str]) -> list[dict]:
         r = get_cached("greenhouse", f"https://boards-api.greenhouse.io/v1/boards/{board}/jobs", {"content": "true"})
         for j in (r.json().get("jobs", []) if r else []):
             location = (j.get("location") or {}).get("name")
-            if in_germany(location) and matches(query, j.get("title", ""), j.get("content", "")):
+            if wanted(location) and matches(query, j.get("title", ""), j.get("content", "")):
                 jobs.append({
                     "source": "greenhouse", "title": j["title"], "company": j.get("company_name") or board,
                     "description": j.get("content", ""), "location": location,
@@ -138,10 +143,12 @@ def lever(query: str, companies: list[str]) -> list[dict]:
             location = (p.get("categories") or {}).get("location")
             lists = "\n".join(f"<h3>{x.get('text', '')}</h3>{x.get('content', '')}" for x in p.get("lists", []))
             description = f"{p.get('description', '')}\n{lists}\n{p.get('additional', '')}"
-            if in_germany(location) and matches(query, p.get("text", ""), description):
+            remote = (p.get("workplaceType") or "").lower() == "remote"
+            if wanted(location, remote) and matches(query, p.get("text", ""), description):
                 jobs.append({
                     "source": "lever", "title": p["text"], "company": company, "description": description,
-                    "location": location, "source_url": p.get("hostedUrl"),
+                    "location": (location or "") + (" (remote)" if remote and "remote" not in (location or "").lower() else ""),
+                    "source_url": p.get("hostedUrl"),
                     "application_url": p.get("applyUrl") or p.get("hostedUrl"), "posted_at": parse_date(p.get("createdAt")),
                 })
     return jobs
@@ -189,7 +196,7 @@ def personio(query: str, companies: list[str]) -> list[dict]:
             location = (pos.findtext("office") or "").strip()
             description = "".join(f"<h3>{d.findtext('name') or ''}</h3>{d.findtext('value') or ''}" for d in pos.iter("jobDescription"))
             url = f"https://{company}.jobs.personio.de/job/{pos.findtext('id')}"
-            if in_germany(location) and matches(query, title, description):
+            if wanted(location) and matches(query, title, description):
                 jobs.append({
                     "source": "personio", "title": title, "company": (pos.findtext("subcompany") or company).strip(),
                     "description": description, "location": location, "source_url": url, "application_url": url,
@@ -209,7 +216,7 @@ def ashby(query: str, boards: list[str]) -> list[dict]:
         for j in (r.json().get("jobs", []) if r else []):
             places = [j.get("location") or ""] + [x.get("location") or "" for x in j.get("secondaryLocations") or []]
             country = ((j.get("address") or {}).get("postalAddress") or {}).get("addressCountry")
-            german = [p for p in places if in_germany(p)]
+            german = [p for p in places if in_germany(p)] or [p for p in places if is_eu_remote(p, bool(j.get("isRemote")))]
             if not j.get("isListed", True) or not (german or country == "Germany"):
                 continue
             if matches(query, j.get("title", ""), j.get("descriptionPlain") or ""):
@@ -312,7 +319,7 @@ def arbeitnow(query: str, _companies: list[str], pages: int = 4) -> list[dict]:
         data = r.json()
         for j in data.get("data", []):
             location = j.get("location") or ""
-            if not (in_germany(location) or (j.get("remote") and "germany" in location.lower())):
+            if not (wanted(location, bool(j.get("remote"))) or (j.get("remote") and "germany" in location.lower())):
                 continue
             if matches(query, j.get("title", ""), j.get("description", "")):
                 jobs.append({
