@@ -82,7 +82,7 @@ DEFAULT_PROFILE = {
         "Python", "FastAPI", "Django", "Angular", "TypeScript", "JavaScript", "Node.js", "Express.js", "MongoDB",
         "MySQL", "PostgreSQL", "REST APIs", "JWT", "RBAC", "AWS", "Agile", "Postman",
         "SCADA", "WebSCADA", "OPC", "OPC UA", "Modbus", "FINS", "PLC", "IIoT", "21 CFR Part 11",
-        "PyInstaller", "Windows Services", "LabVIEW connectivity", "AI-assisted development (Claude Code, ChatGPT)",
+        "PyInstaller", "Windows Services", "LabVIEW connectivity",
         # from the project brief (not on the CV)
         "React", "Docker", "Git",
     ]],

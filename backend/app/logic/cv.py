@@ -22,8 +22,7 @@ SKILL_GROUPS = {
     "Programming": ["Python", "TypeScript", "JavaScript", "FastAPI", "Django", "Node.js", "Express.js", "Angular", "React"],
     "Industrial & OT": ["SCADA", "WebSCADA", "OPC", "OPC UA", "Modbus", "FINS", "PLC", "IIoT", "21 CFR Part 11", "LabVIEW"],
     "Databases & cloud": ["MySQL", "PostgreSQL", "MongoDB", "AWS"],
-    "Tools & practices": ["REST APIs", "JWT", "RBAC", "PyInstaller", "Windows Services", "Docker", "Git", "Postman", "Agile",
-                          "AI-assisted development (Claude Code, ChatGPT)"],
+    "Tools & practices": ["REST APIs", "JWT", "RBAC", "PyInstaller", "Windows Services", "Docker", "Git", "Postman", "Agile"],
 }
 # How a stored (canonical) skill is written on the CV. She connects to LabVIEW but doesn't program in it (user, 2026-10-23).
 SKILL_DISPLAY = {"LabVIEW": "LabVIEW connectivity", "PLC": "PLC data acquisition"}  # she reads PLC data; no PLC programming
