@@ -58,9 +58,9 @@ Compression Machine Interface — Angular SCADA (Angular · TypeScript · LabVIE
 - Leading a junior developer on this project — component architecture, code review, integration testing approach and delivery planning.
 
 Job Application — Job Search & Application Tracker (Python · FastAPI · PostgreSQL · React · TypeScript · Playwright)
-- Web app that collects software jobs in Germany from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.
+- Web app that collects software jobs from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.
 - Scores each job against the CV, shows missing skills, and tracks applications, interviews and follow-ups.
-- Creates a German/EU-format CV and cover letters, and fills company application forms automatically (Playwright).
+- Creates a CV and cover letters, and fills company application forms automatically (Playwright).
 
 EDUCATION
 MSc Computer Science — Greenwich University, London, United Kingdom | January 2022 – January 2023

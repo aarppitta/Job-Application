@@ -1,7 +1,7 @@
 """The standard CV (Word .docx) used for EVERY application, and the cover letter .docx.
 
-German/EU layout ("Lebenslauf" style): A4, personal details as label/value rows (no visa line: user, 2026-10-19), dates in a left column
-(MM/YYYY), reverse-chronological experience, no photo / date of birth / signature.
+A4, header with headline + one-line contact + availability, then profile, key highlights, skills, experience
+(MM/YYYY date column), projects, education (redesign approved by the user 2026-10-23; no visa line, no photo / date of birth).
 Everything comes from the profile (your real CV). Nothing is added, nothing is tailored per job.
 """
 import io
@@ -10,11 +10,12 @@ import re
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Cm, Pt, RGBColor
 from fastapi.responses import Response
 
 ACCENT, GREY = RGBColor(0x1F, 0x3A, 0x5F), RGBColor(0x5F, 0x63, 0x68)
-LEFT = Cm(3.4)  # width of the left (dates / labels) column
+LEFT = Cm(3.2)  # width of the left (dates / labels) column
 
 # Skill groups for the "Technical skills" section; a skill not listed here goes to "Other".
 SKILL_GROUPS = {
@@ -45,9 +46,9 @@ def _run(par, text: str, size: float = 10, bold=False, italic=False, color=None)
 
 def _heading(doc, text: str):
     par = doc.add_paragraph()
-    par.paragraph_format.space_before, par.paragraph_format.space_after = Pt(8), Pt(3)
+    par.paragraph_format.space_before, par.paragraph_format.space_after = Pt(9), Pt(3)
     par.paragraph_format.keep_with_next = True  # never a heading alone at the bottom of a page
-    _run(par, text.upper(), 11, bold=True, color=ACCENT)
+    _run(par, text.upper(), 10.5, bold=True, color=ACCENT)
     border = OxmlElement("w:pBdr")  # thin line under the heading
     bottom = OxmlElement("w:bottom")
     for key, value in (("val", "single"), ("sz", "6"), ("space", "1"), ("color", "1F3A5F")):
@@ -63,7 +64,7 @@ def _row(doc, left: str):
     fmt = par.paragraph_format
     fmt.left_indent, fmt.first_line_indent, fmt.space_after = LEFT, -LEFT, Pt(1)
     fmt.tab_stops.add_tab_stop(LEFT)
-    _run(par, left, 9.5, color=GREY)
+    _run(par, left, 9.3, color=GREY)
     par.add_run("\t")
     return par
 
@@ -77,8 +78,9 @@ def _indented(doc):
 def _bullet(doc, text: str, indent=Cm(0)):
     par = doc.add_paragraph(style="List Bullet")
     fmt = par.paragraph_format
-    fmt.left_indent, fmt.first_line_indent, fmt.space_after = indent + Cm(0.5), -Cm(0.5), Pt(1)
-    _run(par, text, 9.2)
+    fmt.left_indent, fmt.first_line_indent, fmt.space_after = indent + Cm(0.5), -Cm(0.5), Pt(1.5)
+    if text:
+        _run(par, text, 9.2)
     return par
 
 
@@ -110,73 +112,113 @@ def skill_groups(skills: list[str]) -> list[tuple[str, list[str]]]:
     return [(name, [SKILL_DISPLAY.get(s, s) for s in members]) for name, members in groups if members]
 
 
+TEAL, DARK = RGBColor(0x0F, 0x76, 0x6E), RGBColor(0x22, 0x22, 0x22)
+# Technology words set in bold inside bullets, so a 6-second skim still catches the stack (the text itself is unchanged).
+KEYWORDS = [
+    "Python", "FastAPI", "Django", "Angular", "TypeScript", "Node.js/Express.js", "Node.js", "Express.js", "MongoDB",
+    "MySQL", "PostgreSQL", "React", "AWS EC2", "JWT", "RBAC", "OPC-UA", "OPC UA", "Modbus TCP/RTU", "FINS Serial",
+    "FINS Ethernet", "21 CFR Part 11", "WebSCADA", "SCADA", "PyInstaller", "NSSM", "Windows services", "LabVIEW",
+    "Playwright", "Kepware", "RESTful APIs", "Postman", "~30%", "zero licensing cost", "Agile",
+]
+KEYWORD_RE = re.compile("(" + "|".join(re.escape(k) for k in sorted(KEYWORDS, key=len, reverse=True)) + ")")
+
+
+def _rich(par, text: str, size: float = 9.4):
+    """Text with the technology words in bold."""
+    for i, part in enumerate(KEYWORD_RE.split(text)):
+        if part:
+            _run(par, part, size, bold=(i % 2 == 1), color=DARK)
+
+
+def _rule(par, size: str = "6"):
+    border = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    for key, value in (("val", "single"), ("sz", size), ("space", "1"), ("color", "1F3A5F")):
+        bottom.set(qn(f"w:{key}"), value)
+    border.append(bottom)
+    par._p.get_or_add_pPr().append(border)
+
+
 def standard_cv_docx(profile) -> bytes:
+    """Header (name, headline, contact, availability) → profile → key highlights → skills → experience → projects → education."""
     doc = Document()
     section = doc.sections[0]
     section.page_width, section.page_height = Cm(21), Cm(29.7)
-    section.left_margin = section.right_margin = Cm(1.5)
-    section.top_margin = section.bottom_margin = Cm(1.2)
+    section.left_margin = section.right_margin = Cm(1.6)
+    section.top_margin = section.bottom_margin = Cm(1.1)
     normal = doc.styles["Normal"]
     normal.font.name, normal.font.size = "Calibri", Pt(10)
     normal.paragraph_format.space_after = Pt(0)
 
-    par = doc.add_paragraph()
-    _run(par, profile.name, 22, bold=True, color=ACCENT)
+    _run(doc.add_paragraph(), profile.name, 25, bold=True, color=ACCENT)
     if profile.headline:
         par = doc.add_paragraph()
-        par.paragraph_format.space_after = Pt(2)
-        _run(par, profile.headline, 12, color=ACCENT)
-
-    _heading(doc, "Personal details")
+        par.paragraph_format.space_after = Pt(3)
+        _run(par, profile.headline, 12.5, bold=True, color=TEAL)
+    for line in ([profile.location, phone_text(profile.phone), profile.email],
+                 [u.removeprefix("https://") for u in (profile.linkedin_url, profile.github_url) if u]):
+        if any(line):
+            _run(doc.add_paragraph(), "  ·  ".join(x for x in line if x), 9.5, color=GREY)
     languages = ", ".join(f"{x['language']} ({x['level']})" if x.get("level") else x["language"] for x in profile.languages or [])
-    for label, value in (("Location", profile.location), ("Phone", phone_text(profile.phone)), ("Email", profile.email),
-                         ("Online", " · ".join(u.removeprefix("https://") for u in (profile.linkedin_url, profile.github_url) if u)),
-                         ("Languages", languages)):
-        if value:
-            _run(_row(doc, label), value, 10)
+    extra = "  ·  ".join(x for x in (getattr(profile, "availability", None), languages) if x)
+    par = doc.add_paragraph()
+    par.paragraph_format.space_after = Pt(2)
+    if extra:
+        _run(par, extra, 9.5, bold=True, color=ACCENT)
+    _rule(par, "12")
 
     if profile.summary:
         _heading(doc, "Profile")
-        _run(doc.add_paragraph(), profile.summary, 10)
+        par = doc.add_paragraph()
+        par.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        _rich(par, profile.summary, 10)
+
+    highlights = getattr(profile, "highlights", None) or []
+    if highlights:
+        _heading(doc, "Key highlights")
+        for h in highlights:
+            par = _bullet(doc, "")
+            _run(par, h.get("lead", ""), 9.6, bold=True, color=ACCENT)
+            _run(par, h.get("text", ""), 9.6, color=DARK)
+
+    groups = skill_groups([s["name"] for s in profile.skills or []])
+    if groups:  # early: recruiters and ATS look for the stack first
+        _heading(doc, "Technical skills")
+        for name, members in groups:
+            _run(_row(doc, name), ", ".join(members), 9.8, color=DARK)
 
     _heading(doc, "Professional experience")
     for entry in profile.experience or []:
         par = _row(doc, eu_dates(entry.get("dates", "")))
         par.paragraph_format.space_before, par.paragraph_format.keep_with_next = Pt(4), True
-        _run(par, entry["role"], 10.5, bold=True)
+        _run(par, entry["role"], 10.5, bold=True, color=DARK)
         par = _indented(doc)
         par.paragraph_format.keep_with_next = True
-        _run(par, " · ".join(x for x in (entry.get("company"), entry.get("location")) if x), 10, italic=True, color=GREY)
+        _run(par, " · ".join(x for x in (entry.get("company"), entry.get("location")) if x), 9.8, italic=True, color=TEAL)
         for bullet in entry.get("bullets", []):
-            _bullet(doc, bullet, LEFT)
-
-    if profile.education:  # right after experience: the usual order on German CVs
-        _heading(doc, "Education")
-        for line in profile.education:  # "degree | school | dates", newest first
-            degree, school, dates = education_parts(line)
-            par = _row(doc, eu_dates(dates))
-            _run(par, degree, 10.5, bold=True)
-            if school:
-                _run(par, f" — {school}", 10, color=GREY)
+            _rich(_bullet(doc, "", LEFT), bullet)
 
     if profile.projects:
         _heading(doc, "Key projects")
         for project in profile.projects:
             par = doc.add_paragraph()
-            par.paragraph_format.space_before, par.paragraph_format.keep_with_next = Pt(4), True
-            _run(par, project["name"], 10.5, bold=True)
+            par.paragraph_format.space_before, par.paragraph_format.keep_with_next = Pt(5), True
+            _run(par, project["name"], 10.5, bold=True, color=DARK)
             if project.get("tech"):
                 par = doc.add_paragraph()
                 par.paragraph_format.keep_with_next = True
-                _run(par, project["tech"], 9, italic=True, color=GREY)
+                _run(par, project["tech"], 8.8, italic=True, color=TEAL)
             for bullet in project.get("bullets", []):
-                _bullet(doc, bullet)
+                _rich(_bullet(doc, ""), bullet, 9.2)
 
-    groups = skill_groups([s["name"] for s in profile.skills or []])
-    if groups:
-        _heading(doc, "Technical skills")
-        for name, members in groups:
-            _run(_row(doc, name), ", ".join(members), 10)
+    if profile.education:
+        _heading(doc, "Education")
+        for line in profile.education:  # "degree | school | dates", newest first
+            degree, school, dates = education_parts(line)
+            par = _row(doc, eu_dates(dates))
+            _run(par, degree, 10.3, bold=True, color=DARK)
+            if school:
+                _run(par, f" — {school}", 9.8, color=GREY)
 
     out = io.BytesIO()
     doc.save(out)

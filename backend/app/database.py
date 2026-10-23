@@ -53,6 +53,8 @@ NEW_COLUMNS = [
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS agency VARCHAR(200)",
     # 2026-10-20 "not for me": hidden for good (a new scrape re-opens closed jobs, never dismissed ones)
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dismissed_at TIMESTAMPTZ",
+    # 2026-10-23 CV redesign: key highlights + availability line
+    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS highlights JSON DEFAULT '[]', ADD COLUMN IF NOT EXISTS availability VARCHAR(200)",
 ]
 
 

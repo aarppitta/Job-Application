@@ -53,7 +53,8 @@ def test_standard_cv_and_cover_letter_buttons(client):
     # One standard CV: the same file for every job and for /api/cv.docx, no company name, nothing tailored
     lines = docx_text(cv.content)
     assert docx_text(client.get(f"/api/jobs/{other_id}/cv.docx").content) == lines == docx_text(client.get("/api/cv.docx").content)
-    assert "Email\tme@example.com" in lines and not any(line.startswith("Work permit") for line in lines)   # visa need: not on the CV
+    assert any("me@example.com" in line for line in lines[:5]) and not any(line.startswith("Work permit") for line in lines)   # visa need: not on the CV
+    assert "KEY HIGHLIGHTS" in lines and "Open to relocate · Open to remote work" in lines[4]
     assert "04/2026 – present\tSystem Software Engineer — Industrial Automation" in lines          # German date column
     assert not any("Muster" in line for line in lines)
     real = {b for e in DEFAULT_PROFILE["experience"] for b in e["bullets"]} | {b for p in DEFAULT_PROFILE["projects"] for b in p["bullets"]}

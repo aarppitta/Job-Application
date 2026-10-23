@@ -43,6 +43,8 @@ class Profile(Base):
     projects: Mapped[list] = mapped_column(JSON, default=list)        # [{"name", "description", "skills"}]
     # Used by the score (sponsorship part). None = not set yet.
     visa_required: Mapped[bool | None] = mapped_column(Boolean)
+    highlights: Mapped[list] = mapped_column(JSON, default=list)      # CV "Key highlights": [{"lead", "text"}], facts from the CV
+    availability: Mapped[str | None] = mapped_column(String(200))     # CV header line, e.g. "Open to relocate · Open to remote work"
     settings: Mapped[dict] = mapped_column(JSON, default=dict)        # thresholds, weights, sources...
 
 

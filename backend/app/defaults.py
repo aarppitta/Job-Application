@@ -7,7 +7,21 @@ from app.config import settings
 
 DEFAULT_PROFILE = {
     "name": "Arpita Chaudhari",
-    "headline": "Industrial Software Engineer · IIoT & OT Systems",
+    "headline": "Industrial & Full-Stack Software Engineer · Python · FastAPI · Angular · IIoT",
+    "availability": "Open to relocate · Open to remote work",
+    # CV "Key highlights": each one restates a fact from the experience/projects below (nothing new).
+    "highlights": [
+        {"lead": "Custom OPC server, zero licensing cost", "text": " — built from scratch as an open-source alternative to "
+         "Kepware, with four production drivers: Modbus TCP/RTU, FINS Serial, FINS Ethernet and OPC-UA."},
+        {"lead": "Regulated pharma software", "text": " — 21 CFR Part 11 WebSCADA with electronic audit trails, digital "
+         "signatures and multi-tier RBAC, running on production-floor machines."},
+        {"lead": "Full-stack on two stacks", "text": " — Python (FastAPI, Django) + Angular/TypeScript today; Node.js/Express, "
+         "MongoDB and AWS EC2 (MEAN) in London."},
+        {"lead": "Tools engineers actually use", "text": " — OPC-UA tag browser that lets non-specialist engineers configure "
+         "data logging end-to-end, reducing commissioning time for new machines."},
+        {"lead": "Team lead experience", "text": " — code reviews, coding standards, task assignment and technical mentoring of "
+         "junior developers."},
+    ],
     "location": "Ahmedabad, India",
     "github_url": "https://github.com/aarppitta",
     "linkedin_url": "https://linkedin.com/in/arpita-chaudhari",
@@ -118,9 +132,9 @@ DEFAULT_PROFILE = {
          "description": "Personal project: job discovery, CV matching and application tracking",
          "skills": ["Python", "FastAPI", "PostgreSQL", "React", "TypeScript", "REST APIs"],
          "bullets": [
-             "Web app that collects software jobs in Germany from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.",
+             "Web app that collects software jobs from 75+ company career sites and recruiter job pages, removes duplicates and hides closed jobs.",
              "Scores each job against the CV, shows missing skills, and tracks applications, interviews and follow-ups.",
-             "Creates a German/EU-format CV and cover letters, and fills company application forms automatically (Playwright).",
+             "Creates a CV and cover letters, and fills company application forms automatically (Playwright).",
          ]},
     ],
 }

@@ -46,6 +46,8 @@ class ProfileUpdate(BaseModel):
     experience: list[dict] | None = None    # [{"company", "location", "role", "dates", "bullets": [...]}]
     projects: list[dict] | None = None      # [{"name", "tech", "description", "skills", "bullets"}]
     visa_required: bool | None = None
+    highlights: list[dict] | None = None    # [{"lead": "...", "text": " — ..."}]
+    availability: str | None = None
 
 
 @router.get("/profile")

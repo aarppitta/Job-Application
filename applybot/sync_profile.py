@@ -31,7 +31,7 @@ def main():
     if not (answers.get("email") and answers.get("phone")):
         sys.exit(f'Add "email" and "phone" to {ANSWERS} first.')
     contact = {"email": answers["email"], "phone": answers["phone"], "visa_required": answers.get("needs_visa_sponsorship") == "Yes"}
-    keys = ("headline", "summary", "experience", "projects", "education")
+    keys = ("headline", "summary", "experience", "projects", "education", "highlights", "availability")
     skills = [s for s in api.get("/api/profile")["skills"] if s["name"] not in REMOVED_SKILLS]
     skills += [{"name": n, "years": None} for n in ADDED_SKILLS if n not in {s["name"] for s in skills}]
     profile = api.call("PATCH", "/api/profile", json={**contact, **{k: DEFAULT_PROFILE[k] for k in keys}, "skills": skills}).json()
