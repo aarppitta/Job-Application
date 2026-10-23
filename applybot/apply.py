@@ -192,6 +192,13 @@ RULES = [
 
 def answer_for(q: str, kind: str, f: dict) -> str | None:
     text = q.lower()
+    # "Do you have 3+ years of experience?" → compare with the real number, never a blanket Yes.
+    need = re.search(r"(\d+(?:\.\d+)?)\s*\+?\s*(?:or more\s+)?(?:years|yrs|jahre)", text)
+    if need and kind in ("select", "radio", "yesno", "combobox", "checkbox") and f.get("years"):
+        try:
+            return "Yes" if float(f["years"]) >= float(need.group(1)) else "No"
+        except ValueError:
+            pass
     for c in f.get("custom") or []:
         if re.search(c["match"], q, re.I):
             return c["answer"]
