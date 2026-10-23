@@ -52,7 +52,7 @@ def _run(par, text: str, size: float = 10, bold=False, italic=False, color=None)
 
 def _heading(doc, text: str):
     par = doc.add_paragraph()
-    par.paragraph_format.space_before, par.paragraph_format.space_after = Pt(9), Pt(3)
+    par.paragraph_format.space_before, par.paragraph_format.space_after = Pt(7), Pt(2.5)
     par.paragraph_format.keep_with_next = True  # never a heading alone at the bottom of a page
     _run(par, text.upper(), 10.5, bold=True, color=ACCENT)
     border = OxmlElement("w:pBdr")  # thin line under the heading
@@ -174,7 +174,7 @@ def standard_cv_docx(profile) -> bytes:
     section = doc.sections[0]
     section.page_width, section.page_height = Cm(21), Cm(29.7)
     section.left_margin = section.right_margin = Cm(1.6)
-    section.top_margin = section.bottom_margin = Cm(1.1)
+    section.top_margin = section.bottom_margin = Cm(0.95)
     normal = doc.styles["Normal"]
     # Not Calibri: Pages exports its "ft"/"tt" ligatures as single glyphs, so application systems read "So=ware Engineer"
     # (checked 2026-10-23). Arial Narrow extracts cleanly and keeps the CV at 2 pages.

@@ -69,7 +69,8 @@ DEFAULT_PROFILE = {
          ]},
     ],
     "languages": [{"language": "English", "level": "Professional"}, {"language": "Hindi", "level": None},
-                  {"language": "Gujarati", "level": None}],
+                  {"language": "Gujarati", "level": None},
+                  {"language": "German", "level": "Basic, learning"}],
     "target_roles": [
         "Industrial Software Engineer", "IIoT Engineer", "Industrial IoT Engineer", "Automation Software Engineer",
         "Python Backend Engineer", "SCADA Software Developer", "MES Integration Engineer", "OT Software Engineer",

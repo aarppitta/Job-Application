@@ -61,7 +61,7 @@ def template_cover_letter(profile, job, matched: list[str]) -> str:
         lines += [f"I hold an {degree_text(profile.education[0])}.", ""]
     if profile.visa_required is True:
         lines += [f"I am currently based in {profile.location or 'India'} and ready to relocate to Germany; I am also "
-                  "open to working remotely. I would require visa sponsorship (EU Blue Card) for relocation.", ""]
+                  "open to working remotely. I would require visa sponsorship for relocation.", ""]
     lines += ["I would welcome the opportunity to discuss how my background could contribute to your team.", "",
               "Kind regards,", profile.name]
     lines += [x for x in (profile.email, profile.phone, profile.linkedin_url, profile.github_url) if x]
@@ -126,7 +126,7 @@ def _claude_cover_letter(profile, job, matched: list[str]) -> str | None:
             f"Candidate facts: {json.dumps(facts)}\nRole: {job.title} at {job.company}\nMatched skills: {matched}\n"
             f"<job_description>{jd}</job_description>\nWrite a cover letter of at most 280 words. Near the end, say clearly "
             f"that the candidate is ready to relocate to Germany and is also open to working remotely"
-            f"{' (and would need visa sponsorship / EU Blue Card to relocate)' if profile.visa_required else ''}. "
+            f"{' (and would need visa sponsorship to relocate)' if profile.visa_required else ''}. "
             f"Output only the letter.")}],
     )
     if reply.stop_reason == "refusal":
