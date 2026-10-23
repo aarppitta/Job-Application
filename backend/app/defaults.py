@@ -29,12 +29,13 @@ DEFAULT_PROFILE = {
     "years_experience": 2.5,
     "target_country": "Germany",
     "summary": (
-        "Industrial Software Engineer with hands-on expertise in IIoT systems, WebSCADA platforms, and industrial "
-        "protocol communication. Builds custom Python-based OPC servers, 21 CFR Part 11-compliant WebSCADA "
-        "applications, OPC-UA tag management tools, and Windows service-packaged deployments for pharmaceutical and "
-        "manufacturing environments. Proficient in Angular and FastAPI for full-stack industrial applications; "
-        "experienced in leading junior engineers and delivering production-grade systems end-to-end. "
-        "MSc Computer Science, University of Greenwich, London."
+        "Software engineer who builds production systems end to end for regulated pharma and manufacturing: Python "
+        "backends (FastAPI, Django), Angular front ends, and the data layer that reads live data from PLCs over "
+        "OPC-UA, Modbus TCP/RTU and FINS and stores it in the database. Built a custom OPC server as a "
+        "zero-licensing-cost alternative to Kepware, and 21 CFR Part 11-compliant WebSCADA with electronic audit "
+        "trails and digital signatures, deployed as Windows services on production-floor machines. Leads junior "
+        "developers through code reviews and mentoring. Earlier: Node.js/Express and MEAN-stack development, "
+        "including AWS EC2 deployments in London. MSc Computer Science, University of Greenwich, London."
     ),
     "education": [  # degree | school | dates (newest first; see logic/cv.education_parts)
         "MSc Computer Science | Greenwich University, London, United Kingdom | January 2022 – January 2023",
@@ -45,7 +46,7 @@ DEFAULT_PROFILE = {
         {"company": "Kevision Systems", "location": "Ahmedabad, India", "role": "System Software Engineer — Industrial Automation", "dates": "April 2026 – Present",
          "bullets": [
              "Design and develop industrial automation software — WebSCADA platforms, OPC servers, SCADA interfaces and pharma machine data-logging tools for manufacturing environments.",
-             "Build Python-based backend services (FastAPI, Django) for industrial data acquisition and PLC communication via OPC-UA, Modbus TCP/RTU, FINS Serial and FINS Ethernet protocols.",
+             "Build Python-based backend services (FastAPI, Django) for industrial data acquisition — reading live PLC data via OPC-UA, Modbus TCP/RTU, FINS Serial and FINS Ethernet protocols and storing it in the database.",
              "Develop Angular frontend applications for real-time process monitoring, operator controls, recipe management, machine configuration and production reporting.",
              "Implement 21 CFR Part 11 compliance features — electronic audit trails, digital signature workflows and data integrity controls for regulated pharma environments.",
              "Package production Python applications as standalone Windows executables (PyInstaller) and register them as persistent Windows services using NSSM for zero-dependency deployment on production-floor machines.",
@@ -62,7 +63,8 @@ DEFAULT_PROFILE = {
              "Worked in Agile sprints delivering end-to-end frontend/backend integration across multiple release cycles.",
          ]},
     ],
-    "languages": [{"language": "English", "level": "Professional"}],
+    "languages": [{"language": "English", "level": "Professional"}, {"language": "Hindi", "level": None},
+                  {"language": "Gujarati", "level": None}],
     "target_roles": [
         "Industrial Software Engineer", "IIoT Engineer", "Industrial IoT Engineer", "Automation Software Engineer",
         "Python Backend Engineer", "SCADA Software Developer", "MES Integration Engineer", "OT Software Engineer",

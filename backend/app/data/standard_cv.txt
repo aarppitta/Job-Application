@@ -11,7 +11,7 @@ PROFESSIONAL EXPERIENCE
 Kevision Systems · Ahmedabad, India
 System Software Engineer — Industrial Automation | April 2026 – Present
 - Design and develop industrial automation software — WebSCADA platforms, OPC servers, SCADA interfaces and pharma machine data-logging tools for manufacturing environments.
-- Build Python-based backend services (FastAPI, Django) for industrial data acquisition and PLC communication via OPC-UA, Modbus TCP/RTU, FINS Serial and FINS Ethernet protocols.
+- Build Python-based backend services (FastAPI, Django) for industrial data acquisition — reading live PLC data via OPC-UA, Modbus TCP/RTU, FINS Serial and FINS Ethernet protocols and storing it in the database.
 - Develop Angular frontend applications for real-time process monitoring, operator controls, recipe management, machine configuration and production reporting.
 - Implement 21 CFR Part 11 compliance features — electronic audit trails, digital signature workflows and data integrity controls for regulated pharma environments.
 - Package production Python applications as standalone Windows executables (PyInstaller) and register them as persistent Windows services using NSSM for zero-dependency deployment on production-floor machines.

@@ -25,7 +25,7 @@ SKILL_GROUPS = {
     "Tools & practices": ["REST APIs", "JWT", "RBAC", "PyInstaller", "Windows Services", "Docker", "Git", "Postman", "Agile"],
 }
 # How a stored (canonical) skill is written on the CV. She connects to LabVIEW but doesn't program in it (user, 2026-10-23).
-SKILL_DISPLAY = {"LabVIEW": "LabVIEW connectivity"}
+SKILL_DISPLAY = {"LabVIEW": "LabVIEW connectivity", "PLC": "PLC data acquisition"}  # she reads PLC data; no PLC programming
 MONTHS = {m: i + 1 for i, m in enumerate(["january", "february", "march", "april", "may", "june", "july",
                                          "august", "september", "october", "november", "december"])}
 
@@ -130,6 +130,29 @@ def _rich(par, text: str, size: float = 9.4):
             _run(par, part, size, bold=(i % 2 == 1), color=DARK)
 
 
+CV_FONT = "Arial Narrow"
+
+
+def _link(par, text: str, url: str, size: float, color):
+    """A clickable link (kept in the PDF Pages exports), styled like the text around it."""
+    rel = par.part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), rel)
+    run = OxmlElement("w:r")
+    rpr = OxmlElement("w:rPr")
+    for tag, attrs in (("w:color", {"w:val": str(color)}), ("w:sz", {"w:val": str(int(size * 2))})):
+        el = OxmlElement(tag)
+        for k, v in attrs.items():
+            el.set(qn(k), v)
+        rpr.append(el)
+    run.append(rpr)
+    t = OxmlElement("w:t")
+    t.text = text
+    run.append(t)
+    link.append(run)
+    par._p.append(link)
+
+
 def _rule(par, size: str = "6"):
     border = OxmlElement("w:pBdr")
     bottom = OxmlElement("w:bottom")
@@ -147,7 +170,9 @@ def standard_cv_docx(profile) -> bytes:
     section.left_margin = section.right_margin = Cm(1.6)
     section.top_margin = section.bottom_margin = Cm(1.1)
     normal = doc.styles["Normal"]
-    normal.font.name, normal.font.size = "Calibri", Pt(10)
+    # Not Calibri: Pages exports its "ft"/"tt" ligatures as single glyphs, so application systems read "So=ware Engineer"
+    # (checked 2026-10-23). Arial Narrow extracts cleanly and keeps the CV at 2 pages.
+    normal.font.name, normal.font.size = CV_FONT, Pt(10)
     normal.paragraph_format.space_after = Pt(0)
 
     _run(doc.add_paragraph(), profile.name, 25, bold=True, color=ACCENT)
@@ -155,10 +180,20 @@ def standard_cv_docx(profile) -> bytes:
         par = doc.add_paragraph()
         par.paragraph_format.space_after = Pt(3)
         _run(par, profile.headline, 12.5, bold=True, color=TEAL)
-    for line in ([profile.location, phone_text(profile.phone), profile.email],
-                 [u.removeprefix("https://") for u in (profile.linkedin_url, profile.github_url) if u]):
-        if any(line):
-            _run(doc.add_paragraph(), "  ·  ".join(x for x in line if x), 9.5, color=GREY)
+    for line in ([(profile.location, None), (phone_text(profile.phone), None),
+                  (profile.email, f"mailto:{profile.email}" if profile.email else None)],
+                 [(u.removeprefix("https://"), u if u.startswith("http") else f"https://{u}")
+                  for u in (profile.linkedin_url, profile.github_url) if u]):
+        items = [(t, u) for t, u in line if t]
+        if items:
+            par = doc.add_paragraph()
+            for i, (label, url) in enumerate(items):
+                if i:
+                    _run(par, "  ·  ", 9.5, color=GREY)
+                if url:
+                    _link(par, label, url, 9.5, GREY)
+                else:
+                    _run(par, label, 9.5, color=GREY)
     languages = ", ".join(f"{x['language']} ({x['level']})" if x.get("level") else x["language"] for x in profile.languages or [])
     extra = "  ·  ".join(x for x in (getattr(profile, "availability", None), languages) if x)
     par = doc.add_paragraph()
