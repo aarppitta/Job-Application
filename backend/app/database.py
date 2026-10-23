@@ -55,6 +55,7 @@ NEW_COLUMNS = [
     "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS dismissed_at TIMESTAMPTZ",
     # 2026-10-23 CV redesign: key highlights + availability line
     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS highlights JSON DEFAULT '[]', ADD COLUMN IF NOT EXISTS availability VARCHAR(200)",
+    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS career_breaks JSON DEFAULT '[]'",
 ]
 
 

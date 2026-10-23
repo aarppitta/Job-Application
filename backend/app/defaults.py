@@ -9,6 +9,11 @@ DEFAULT_PROFILE = {
     "name": "Arpita Chaudhari",
     "headline": "Industrial & Full-Stack Software Engineer · Python · FastAPI · Angular · IIoT",
     "availability": "Open to relocate · Open to remote work",
+    # Gaps between jobs, shown in the experience timeline (her words, 2026-10-23).
+    "career_breaks": [
+        {"dates": "December 2025 – April 2026", "text": "Career break — upskilling and family time"},
+        {"dates": "December 2024 – August 2025", "text": "Career break — relocation from London, UK to India (04/2025)"},
+    ],
     # CV "Key highlights": each one restates a fact from the experience/projects below (nothing new).
     "highlights": [
         {"lead": "Custom OPC server, zero licensing cost", "text": " — built from scratch as an open-source alternative to "

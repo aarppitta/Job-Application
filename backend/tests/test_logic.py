@@ -273,3 +273,18 @@ def test_remote_europe_sources(monkeypatch):
     [job] = sources.workremotely_eu("Python Developer", [])
     assert job["application_url"] == "https://jobs.ashbyhq.com/goreel/abc-1" and job["location"] == "Remote (Europe)"
     assert "FastAPI" in job["description"]      # skills become the (short) description; US-only and link-less jobs are dropped
+
+
+def test_cv_timeline_shows_career_breaks_between_jobs():
+    import io
+    from types import SimpleNamespace
+
+    from docx import Document
+
+    from app.defaults import DEFAULT_PROFILE
+    from app.logic.cv import standard_cv_docx
+    p = SimpleNamespace(**{**DEFAULT_PROFILE, "email": "me@example.com", "phone": None, "skills": [{"name": "Python"}]})
+    lines = [x.text for x in Document(io.BytesIO(standard_cv_docx(p))).paragraphs]
+    order = [i for i, line in enumerate(lines) if line.startswith(("04/2026", "12/2025", "08/2025", "12/2024", "07/2023"))]
+    assert [lines[i][:7] for i in order] == ["04/2026", "12/2025", "08/2025", "12/2024", "07/2023"]
+    assert "12/2024 – 08/2025\tCareer break — relocation from London, UK to India (04/2025)" in lines

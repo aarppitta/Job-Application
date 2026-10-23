@@ -48,6 +48,7 @@ class ProfileUpdate(BaseModel):
     visa_required: bool | None = None
     highlights: list[dict] | None = None    # [{"lead": "...", "text": " — ..."}]
     availability: str | None = None
+    career_breaks: list[dict] | None = None  # [{"dates": "December 2024 – August 2025", "text": "..."}]
 
 
 @router.get("/profile")

@@ -36,6 +36,12 @@ def eu_dates(text: str) -> str:
     return re.sub(r"\bPresent\b", "present", text)
 
 
+def start_key(dates: str) -> tuple[int, int]:
+    """'December 2024 – August 2025' / '12/2024 – 08/2025' → (2024, 12): to sort the timeline."""
+    m = re.search(r"(\d{1,2})/(\d{4})", eu_dates(dates))
+    return (int(m[2]), int(m[1])) if m else (0, 0)
+
+
 def _run(par, text: str, size: float = 10, bold=False, italic=False, color=None):
     run = par.add_run(text)
     run.font.size, run.bold, run.italic = Pt(size), bold, italic
@@ -223,7 +229,15 @@ def standard_cv_docx(profile) -> bytes:
             _run(_row(doc, name), ", ".join(members), 9.8, color=DARK)
 
     _heading(doc, "Professional experience")
-    for entry in profile.experience or []:
+    timeline = [dict(e) for e in profile.experience or []] + \
+        [{**b, "break": True} for b in getattr(profile, "career_breaks", None) or []]
+    timeline.sort(key=lambda e: start_key(e.get("dates", "")), reverse=True)  # newest first, breaks in between
+    for entry in timeline:
+        if entry.get("break"):
+            par = _row(doc, eu_dates(entry.get("dates", "")))
+            par.paragraph_format.space_before = Pt(4)
+            _run(par, entry.get("text", ""), 10, italic=True, color=GREY)
+            continue
         par = _row(doc, eu_dates(entry.get("dates", "")))
         par.paragraph_format.space_before, par.paragraph_format.keep_with_next = Pt(4), True
         _run(par, entry["role"], 10.5, bold=True, color=DARK)
