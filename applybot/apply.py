@@ -74,8 +74,28 @@ OFF_PROFILE = [
     ("other stack", r"\b(android|ruby|rails|odoo|php|scala|elixir|salesforce|sap|sharepoint|microsoft 365)\b"),
     ("AI/ML-heavy", r"\b(ai|ml|machine learning|genai|llm|agentic|agents?)\b"),
     ("not development", r"\b(analyst|analytics engineer|consultant|sales|support engineer|customer success|field application|"
-                        r"technician|mechanic|hardware|recruiter|appsec|security engineer|talent pool|weekend)\b"),
+                        r"technician|mechanic|hardware|recruiter|appsec|security engineer|talent pool|weekend)\b|"
+                        r"(manager|managerin|berater|beraterin|vertrieb|kundenbetreuer|projektleiter)\b"),
 ]
+# Agencies that told her they only place people already living in Germany (persona, 23 Oct; JAC's JDs say the same).
+BLOCKED_AGENCIES = re.compile(r"persona service|jac recruitment", re.I)
+GERMAN_WORDS = {"und", "die", "der", "das", "für", "mit", "wir", "sie", "ist", "zu", "bei", "auf", "den", "unsere", "unser",
+                "deine", "dein", "ihre", "eine", "einen", "werden", "sowie", "oder", "nicht", "auch", "von", "im", "als"}
+HER_STACK = re.compile(r"\b(python|fastapi|django|typescript|javascript|node(\.js)?|angular|react|express)\b", re.I)
+OTHER_STACK = re.compile(r"\.net\b|\bc#|\bjava\b(?!script)|\bkotlin\b|\bgolang\b|\bphp\b|\bruby\b", re.I)
+
+
+def off_profile_jd(job: dict) -> str | None:
+    """Reasons visible only in the job text: German-language posting, a blocked agency, or a stack she doesn't have."""
+    text = re.sub(r"<[^>]+>", " ", job.get("description") or "")
+    words = re.findall(r"[a-zäöüß]+", text.lower())
+    if len(words) > 60 and sum(w in GERMAN_WORDS for w in words) / len(words) > 0.06:
+        return "German-language posting"
+    if BLOCKED_AGENCIES.search(f"{job.get('agency') or ''} {job.get('company') or ''}"):
+        return "agency that only places people living in Germany"
+    if OTHER_STACK.search(text[:3000]) and not HER_STACK.search(text):
+        return "stack she doesn't use (C#/.NET, Java, Go, PHP, Ruby)"
+    return None
 
 
 def off_profile(title: str) -> str | None:
@@ -614,6 +634,13 @@ def apply_one(api: Api, browser, job: dict, profile: dict, answers: dict, boards
     decision = api.get(f"/api/jobs/{job['id']}/analysis")["recommendation"]
     if decision["decision"] != "APPLY":
         return {**result, "result": "skipped", "detail": f"app says {decision['label']}"}
+    why = off_profile_jd(api.get(f"/api/jobs/{job['id']}"))
+    if why:
+        try:
+            api.patch(f"/api/jobs/{job['id']}", {"dismissed": True})
+        except Exception:
+            pass
+        return {**result, "result": "skipped", "detail": f"off-profile: {why}"}
     url = greenhouse_form_url(job, boards) if job["source"] == "greenhouse" else result["url"]
     if not url:
         return {**result, "result": "needs_you", "detail": "no application link"}
