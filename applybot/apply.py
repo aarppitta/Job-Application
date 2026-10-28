@@ -74,7 +74,8 @@ OFF_PROFILE = [
     ("other stack", r"\b(android|ruby|rails|odoo|php|scala|elixir|salesforce|sap|sharepoint|microsoft 365)\b"),
     ("AI/ML-heavy", r"\b(ai|ml|machine learning|genai|llm|agentic|agents?)\b"),
     ("not development", r"\b(analyst|analytics engineer|consultant|sales|support engineer|customer success|field application|"
-                        r"technician|mechanic|hardware|recruiter|appsec|security engineer|talent pool|weekend)\b|"
+                        r"technician|mechanic|hardware|recruiter|appsec|security engineer|talent pool|weekend|"
+                        r"test engineer|test automation|qa engineer|mechatronics|safety engineer|maintenance engineer|v\.i\.e)\b|"
                         r"(manager|managerin|berater|beraterin|vertrieb|kundenbetreuer|projektleiter)\b"),
 ]
 # Agencies that told her they only place people already living in Germany (persona, 23 Oct; JAC's JDs say the same).
