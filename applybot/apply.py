@@ -44,7 +44,15 @@ class Api:
         self.http.headers["Authorization"] = f"Bearer {r.json()['token']}"
 
     def call(self, method: str, path: str, **kw) -> httpx.Response:
-        r = self.http.request(method, path, **kw)
+        # The free-tier API sometimes answers slowly (cold start, database far away): retry reads, never writes.
+        for attempt in range(3 if method == "GET" else 1):
+            try:
+                r = self.http.request(method, path, **kw)
+                break
+            except (httpx.TimeoutException, httpx.TransportError):
+                if method != "GET" or attempt == 2:
+                    raise
+                time.sleep(10 * (attempt + 1))
         r.raise_for_status()
         return r
 
@@ -712,7 +720,12 @@ def main():
         for job in jobs:
             if len([r for r in results if r["result"] != "skipped"]) >= args.limit:
                 break
-            res = apply_one(api, browser, job, profile, answers, settings.get("greenhouse_boards", []), args.submit, shots, cv)
+            try:
+                res = apply_one(api, browser, job, profile, answers, settings.get("greenhouse_boards", []), args.submit, shots, cv)
+            except Exception as exc:  # one slow API call or broken page must not end the whole run
+                res = {"job_id": job["id"], "title": job["title"], "company": job["company"],
+                       "url": job.get("application_url") or job.get("source_url"), "at": datetime.now().isoformat(timespec="seconds"),
+                       "result": "failed", "detail": f"{type(exc).__name__}: {str(exc)[:120]}"}
             results.append(res)
             print(f"[{res['result']:>9}] {job['company']} · {job['title']} (#{job['id']}): {res.get('detail', '')}", flush=True)
             if args.submit:  # a dry run never blocks a later real run
