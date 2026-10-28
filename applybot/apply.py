@@ -85,12 +85,32 @@ HER_STACK = re.compile(r"\b(python|fastapi|django|typescript|javascript|node(\.j
 OTHER_STACK = re.compile(r"\.net\b|\bc#|\bjava\b(?!script)|\bkotlin\b|\bgolang\b|\bphp\b|\bruby\b", re.I)
 
 
+def german_level_required(text: str) -> str | None:
+    """'German C1 required', 'fluent German', 'Deutsch verhandlungssicher', 'German and English at least B2' → that sentence.
+    A sentence that calls German a plus / nice to have / advantage doesn't count (Tina: skip only high-German jobs)."""
+    for s in re.split(r"(?<=[.!?•\n])\s+|\s+-\s+|\s{2,}", text):
+        low = s.lower()
+        if not re.search(r"\b(german|deutsch|deutschkenntnisse)\b", low):  # not "Germany" / "Deutschland"
+            continue
+        if re.search(r"\b(plus|nice[- ]to[- ]have|advantage|bonus|beneficial|desirable|preferred|helpful|not (a )?(must|required|requirement)|"
+                     r"wünschenswert|von vorteil|willkommen)\b", low):
+            continue
+        if re.search(r"\b(b2|c1|c2)\b|fluent|fließend|fliessend|verhandlungssicher|native|muttersprach|business[- ]level|"
+                     r"(very good|excellent|strong|good|sehr gute?|gute?|proficient)\s+(command of\s+|knowledge of\s+|skills in\s+)?(written and spoken\s+)?"
+                     r"(german|deutsch)", low):
+            return s.strip()[:120]
+    return None
+
+
 def off_profile_jd(job: dict) -> str | None:
     """Reasons visible only in the job text: German-language posting, a blocked agency, or a stack she doesn't have."""
     text = re.sub(r"<[^>]+>", " ", job.get("description") or "")
     words = re.findall(r"[a-zäöüß]+", text.lower())
     if len(words) > 60 and sum(w in GERMAN_WORDS for w in words) / len(words) > 0.06:
         return "German-language posting"
+    german = german_level_required(text)
+    if german:
+        return f"needs good German ({german})"
     if BLOCKED_AGENCIES.search(f"{job.get('agency') or ''} {job.get('company') or ''}"):
         return "agency that only places people living in Germany"
     if OTHER_STACK.search(text[:3000]) and not HER_STACK.search(text):
