@@ -40,6 +40,7 @@ export default function Applications() {
   const { data: apps, error, loading, reload } = useFetch<any[]>("/api/applications");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
   const [sort, setSort] = useState<keyof typeof SORTS>("date");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [askStage, setAskStage] = useState<number | null>(null);
@@ -68,13 +69,14 @@ export default function Applications() {
     const needle = q.trim().toLowerCase();
     const list = (apps ?? []).filter((a) =>
       (!filter || FILTERS[filter].match(a.status)) &&
+      (!statusFilter || a.status === statusFilter) &&
       (!needle || `${a.job.title} ${a.job.company} ${a.job.location ?? ""}`.toLowerCase().includes(needle)));
     return [...list].sort((a, b) =>
       sort === "score" ? (b.score ?? 0) - (a.score ?? 0)
         : sort === "health" ? a.health.score - b.health.score
         : sort === "company" ? a.job.company.localeCompare(b.job.company)
         : b.submitted_at.localeCompare(a.submitted_at));
-  }, [apps, q, filter, sort]);
+  }, [apps, q, filter, statusFilter, sort]);
 
   const file = (app: Application, kind: string) => `${kind}_${app.job.company.replace(/\W+/g, "_")}.docx`;
   const files = (a: Application) => (
@@ -143,6 +145,16 @@ export default function Applications() {
                 <span className="sr-only">Search applications</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
                 <input className={`${inputClass} pl-9`} placeholder="Search company, title or city…" value={q} onChange={(e) => setQ(e.target.value)} />
+              </label>
+              <label className="relative sm:w-56">
+                <span className="sr-only">Filter by status</span>
+                <select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">All statuses ({apps.length})</option>
+                  {APP_STATUSES.map((s) => {
+                    const n = apps.filter((a) => a.status === s).length;
+                    return n ? <option key={s} value={s}>{APP_STATUS[s].label} ({n})</option> : null;
+                  })}
+                </select>
               </label>
               <label className="relative sm:w-56">
                 <span className="sr-only">Sort</span>
