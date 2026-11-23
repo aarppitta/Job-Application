@@ -96,10 +96,11 @@ OTHER_COUNTRIES = {
     "europe": "Europe", "european union": "Europe", "eu": "Europe", "emea": "Europe", "eea": "Europe",
 }
 # Tina applies to Germany and these countries in any work mode (remote, hybrid, on site): skilled workers get permanent
-# residence there after about 2-5 years (Germany 21-27 months with the Blue Card, Ireland Stamp 4 after 2 years,
-# Luxembourg/Austria/Netherlands/Belgium 5 years). Left out on purpose: Sweden and Finland (tightened in 2025/26),
-# Denmark (8 years), France (French B1 required). Plus remote jobs anywhere in the EU (or "Remote, Europe").
-PR_COUNTRIES = {"Netherlands", "Ireland", "Austria", "Luxembourg", "Belgium"}
+# residence there in 5 years or less (Germany 21-27 months with the Blue Card, Ireland Stamp 4 after 2 years,
+# Luxembourg 2-5 years, Netherlands/Belgium 5 years; learning the local language is fine for her). Left out on purpose:
+# Austria (her choice, 22 Nov), Sweden and Finland (tightened in 2025/26), Denmark (8 years).
+# Plus remote jobs anywhere in the EU (or "Remote, Europe").
+PR_COUNTRIES = {"Netherlands", "Ireland", "Luxembourg", "Belgium"}
 EU_COUNTRIES = {
     "Germany", "Austria", "Netherlands", "Poland", "France", "Spain", "Belgium", "Luxembourg", "Ireland", "Portugal",
     "Italy", "Denmark", "Sweden", "Finland", "Estonia", "Latvia", "Lithuania", "Czechia", "Slovakia", "Hungary",

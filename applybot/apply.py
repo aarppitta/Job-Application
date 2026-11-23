@@ -18,7 +18,7 @@ import re
 import sys
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -128,6 +128,31 @@ def off_profile(title: str) -> str | None:
         if re.search(rx, title or "", re.I):
             return why
     return None
+
+
+def _age_days(job: dict) -> float | None:
+    try:
+        posted = datetime.fromisoformat(str(job.get("posted_at")).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if posted.tzinfo is None:
+        posted = posted.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - posted).total_seconds() / 86400
+
+
+def too_slow(job: dict) -> bool:
+    """Tina wants replies: skip ads that say they need an existing EU work permit (certain 'no'), and ads older than
+    45 days (usually filled or forgotten)."""
+    age = _age_days(job)
+    return job.get("visa_status") == "unlikely" or (age is not None and age > 45)
+
+
+def reply_priority(job: dict) -> tuple:
+    """Most likely to answer first: visa sponsorship confirmed, then fresh ads (applying in the first days gets read),
+    then the match score."""
+    age = _age_days(job)
+    fresh = 0 if age is not None and age <= 7 else 1 if age is not None and age <= 21 else 2
+    return (0 if job.get("visa_status") == "confirmed" else 1, fresh, -(job.get("ats_score") or 0))
 
 
 def candidates(api: Api, threshold: float) -> list[dict]:
@@ -760,6 +785,9 @@ def main():
                 pass
         jobs = [j for j in jobs if not off_profile(j["title"])]
     jobs = [j for j in jobs if (ledger.get(job_key(j)) or {}).get("result") != "applied"]  # never twice, local or live app
+    if not args.job:
+        jobs = [j for j in jobs if not too_slow(j)]
+        jobs.sort(key=reply_priority)
     shots = HOME / "screenshots"
     shots.mkdir(exist_ok=True)
 

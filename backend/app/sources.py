@@ -92,12 +92,12 @@ def in_germany(location: str | None) -> bool:
 
 
 def in_target_country(location: str | None) -> bool:
-    """Germany or one of the easy-permanent-residence countries (Netherlands, Ireland, Austria, Luxembourg, Belgium)."""
+    """Germany or one of the easy-permanent-residence countries (Netherlands, Ireland, Luxembourg, Belgium)."""
     return in_germany(location) or detect_country(location) in PR_COUNTRIES
 
 
 def wanted(location: str | None, remote: bool = False) -> bool:
-    """Germany / Netherlands / Ireland / Austria / Luxembourg / Belgium (any work mode), or a remote job anywhere in the EU."""
+    """Germany / Netherlands / Ireland / Luxembourg / Belgium (any work mode), or a remote job anywhere in the EU."""
     return in_target_country(location) or is_eu_remote(location, remote)
 
 
@@ -165,7 +165,7 @@ def lever(query: str, companies: list[str]) -> list[dict]:
 def smartrecruiters(query: str, companies: list[str]) -> list[dict]:
     """jobs.smartrecruiters.com/<Company> -> public Posting API (has real search + country filter)"""
     jobs = []
-    countries = ("de", "nl", "ie", "at", "lu", "be")  # Germany + the easy-permanent-residence countries
+    countries = ("de", "nl", "ie", "lu", "be")  # Germany + the easy-permanent-residence countries
     for company, cc in ((c, cc) for c in companies for cc in countries):
         r = get("smartrecruiters", f"https://api.smartrecruiters.com/v1/companies/{company}/postings",
                 {"q": "" if query == "*" else query, "country": cc, "limit": 25})
