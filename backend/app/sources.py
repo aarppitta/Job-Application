@@ -764,9 +764,20 @@ SOURCES = {
 }
 
 
+MAX_AGE_DAYS = 14  # Tina: only jobs posted in the last two weeks (fresh ads get answers; old ones are usually filled)
+
+
+def fresh_enough(raw: dict) -> bool:
+    """Posted within MAX_AGE_DAYS. Jobs without a posting date are kept (many company boards don't give one)."""
+    posted = raw.get("posted_at")
+    if not isinstance(posted, datetime):
+        posted = parse_date(posted)
+    return posted is None or posted >= datetime.now(UTC) - timedelta(days=MAX_AGE_DAYS)
+
+
 def search(source_name: str, query: str, user_settings: dict) -> list[dict]:
     function, companies_key = SOURCES[source_name]
     companies = user_settings.get(companies_key, []) if companies_key else []
     if companies_key and not companies:
         return []  # nothing configured for this source
-    return function(query, companies)
+    return [raw for raw in function(query, companies) if fresh_enough(raw)]

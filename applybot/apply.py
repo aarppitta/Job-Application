@@ -142,9 +142,9 @@ def _age_days(job: dict) -> float | None:
 
 def too_slow(job: dict) -> bool:
     """Tina wants replies: skip ads that say they need an existing EU work permit (certain 'no'), and ads older than
-    45 days (usually filled or forgotten)."""
+    14 days (her rule: only jobs posted in the last two weeks)."""
     age = _age_days(job)
-    return job.get("visa_status") == "unlikely" or (age is not None and age > 45)
+    return job.get("visa_status") == "unlikely" or (age is not None and age > 14)
 
 
 def reply_priority(job: dict) -> tuple:

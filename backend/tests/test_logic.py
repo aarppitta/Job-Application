@@ -252,6 +252,16 @@ def test_remote_jobs_anywhere_in_the_eu_are_wanted():
     assert detect_country("Neu-Ulm") != "Europe" and is_eu_remote("Warsaw, Poland", True)
 
 
+def test_only_jobs_posted_in_the_last_two_weeks():
+    from datetime import UTC, datetime, timedelta
+
+    from app.sources import fresh_enough
+    now = datetime.now(UTC)
+    assert fresh_enough({"posted_at": now}) and fresh_enough({"posted_at": now - timedelta(days=13)})
+    assert not fresh_enough({"posted_at": now - timedelta(days=15)})
+    assert fresh_enough({"posted_at": (now - timedelta(days=3)).isoformat()}) and fresh_enough({})  # no date: kept
+
+
 def test_easy_permanent_residence_countries_any_work_mode():
     from app.sources import wanted
     for place in ("Amsterdam, Netherlands", "Eindhoven", "Dublin, Ireland", "Cork",
