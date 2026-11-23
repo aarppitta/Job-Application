@@ -258,6 +258,9 @@ def test_easy_permanent_residence_countries_any_work_mode():
                   "Luxembourg", "Brussels, Belgium", "Ghent (hybrid)"):
         assert wanted(place), place
     assert not wanted("Vienna, Austria") and not wanted("Graz") and wanted("Vienna, Austria (remote)")  # Austria: remote only
+    assert wanted("Remote (Canada)") and wanted("Toronto, Canada (remote)") and not wanted("Toronto, Canada")  # Canada: remote only
+    from app.sources import _remote_label
+    assert _remote_label(["Canada"]) == "Remote (Canada)" and _remote_label(["United States"]) is None
     nl = job_from("Python Developer", SCADA_JD, location="Rotterdam, Netherlands")
     assert nl.country == "Netherlands"
     assert "permanent residence" in " ".join(score_job(arpita(), nl)["reasons"])

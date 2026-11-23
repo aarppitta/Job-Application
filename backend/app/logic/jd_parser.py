@@ -93,6 +93,8 @@ OTHER_COUNTRIES = {
     "cork": "Ireland", "galway": "Ireland", "limerick": "Ireland", "graz": "Austria", "linz": "Austria", "salzburg": "Austria",
     "innsbruck": "Austria", "wien": "Austria", "antwerp": "Belgium", "antwerpen": "Belgium", "ghent": "Belgium", "gent": "Belgium",
     "leuven": "Belgium", "liege": "Belgium", "bruxelles": "Belgium", "nederland": "Netherlands", "osterreich": "Austria",
+    "canada": "Canada", "toronto": "Canada", "vancouver": "Canada", "montreal": "Canada", "ottawa": "Canada",
+    "calgary": "Canada", "edmonton": "Canada",
     "europe": "Europe", "european union": "Europe", "eu": "Europe", "emea": "Europe", "eea": "Europe",
 }
 # Tina applies to Germany and these countries in any work mode (remote, hybrid, on site): skilled workers get permanent
@@ -107,13 +109,15 @@ EU_COUNTRIES = {
     "Romania", "Bulgaria", "Greece", "Croatia", "Slovenia", "Cyprus", "Malta", "Europe",
 }
 REMOTE_WORDS = r"\b(remote|anywhere|work from home|home ?office|distributed|fully remote)\b"
+# Remote jobs are also wanted in Canada (Tina, 22 Nov) — remote only, never on site there.
+REMOTE_OK = EU_COUNTRIES | {"Canada"}
 
 
 def is_eu_remote(location: str | None, remote: bool = False) -> bool:
-    """'Remote - Europe', 'Amsterdam (remote)', 'EU Remote', or any EU place flagged remote by the job board."""
+    """'Remote - Europe', 'Amsterdam (remote)', 'EU Remote', 'Remote (Canada)', or any EU/Canadian place flagged remote."""
     text = simplify(location or "")
     is_remote = remote or bool(re.search(REMOTE_WORDS, text))
-    return is_remote and (detect_country(location) in EU_COUNTRIES)
+    return is_remote and (detect_country(location) in REMOTE_OK)
 
 
 def detect_country(location: str | None) -> str | None:

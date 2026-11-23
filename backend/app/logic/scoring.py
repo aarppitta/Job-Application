@@ -114,6 +114,10 @@ def score_job(profile, job, weights: dict | None = None, threshold: float = 80, 
         reasons.append(f"In {job.country} ({job.location}): easy permanent residence after a few years of work.")
         if job.country in ("Netherlands", "Belgium", "Luxembourg"):
             concerns.append(f"{job.country}: check the ad doesn't require Dutch/French.")
+    elif eu_remote and job.country == "Canada":
+        location = 80
+        reasons.append(f"Remote in Canada ({job.location}).")
+        concerns.append("Remote Canada job: most need you to live in Canada with work rights already.")
     elif eu_remote:
         location = 85
         reasons.append(f"Remote within the EU ({job.location}).")

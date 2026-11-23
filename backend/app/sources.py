@@ -597,6 +597,8 @@ def _remote_label(places: list[str]) -> str | None:
         return "Remote (worldwide)"
     if any(simplify(n) in EUROPE for n in names) or any(OPEN_TO_EU.search(n) for n in names):
         return "Remote (Europe)"
+    if any(re.search(r"\bcanada\b", n, re.I) for n in names):
+        return "Remote (Canada)"
     return None
 
 
