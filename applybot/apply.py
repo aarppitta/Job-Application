@@ -93,14 +93,14 @@ def german_level_required(text: str) -> str | None:
     A sentence that calls German a plus / nice to have / advantage doesn't count (Tina: skip only high-German jobs)."""
     for s in re.split(r"(?<=[.!?•\n])\s+|\s+-\s+|\s{2,}", text):
         low = s.lower()
-        if not re.search(r"\b(german|deutsch|deutschkenntnisse|dutch|nederlands|french|francais|français)\b", low):  # not "Germany"
+        if not re.search(r"\b(german|deutsch|deutschkenntnisse|dutch|nederlands|french|francais|français|polish|polski)\b", low):  # not "Germany"
             continue
         if re.search(r"\b(plus|nice[- ]to[- ]have|advantage|bonus|beneficial|desirable|preferred|helpful|not (a )?(must|required|requirement)|"
                      r"wünschenswert|von vorteil|willkommen)\b", low):
             continue
         if re.search(r"\b(b2|c1|c2)\b|fluent|fließend|fliessend|verhandlungssicher|native|muttersprach|business[- ]level|"
                      r"(very good|excellent|strong|good|sehr gute?|gute?|proficient)\s+(command of\s+|knowledge of\s+|skills in\s+)?(written and spoken\s+)?"
-                     r"(german|deutsch|dutch|french)", low):
+                     r"(german|deutsch|dutch|french|polish)", low):
             return s.strip()[:120]
     return None
 
@@ -201,13 +201,28 @@ def posted_salary(job: dict) -> dict:
     return {"salary_eur_per_year": int(mid), "salary_text": text}
 
 
+# Countries where her default €70-72k ask would price her out (no salary in the ad): answer with the local market range.
+COUNTRY_SALARY = {
+    "Poland": {"salary_eur_per_year": 55000, "monthly": "20000",
+               "salary_text": "PLN 18,000-22,000 gross per month (about EUR 50,000-60,000 per year)"},
+}
+
+
+def country_salary(job: dict, answers: dict) -> dict:
+    local = COUNTRY_SALARY.get(job.get("country") or "")
+    if not local or posted_salary(job):
+        return {}
+    monthly = [{**c, "answer": local["monthly"]} if "monthly" in c.get("match", "") else c for c in answers.get("custom") or []]
+    return {"salary_eur_per_year": local["salary_eur_per_year"], "salary_text": local["salary_text"], "custom": monthly}
+
+
 def facts(profile: dict, answers: dict, job: dict, letter: str) -> dict:
     name = profile["name"].split()
     location = profile.get("location") or ""
     exp = (profile.get("experience") or [{}])[0]
     worked_here = any(job["company"].lower()[:6] in (e.get("company") or "").lower() for e in profile.get("experience") or [])
     return {
-        **answers, **posted_salary(job), "first": name[0], "last": " ".join(name[1:]), "full_name": profile["name"],
+        **answers, **country_salary(job, answers), **posted_salary(job), "first": name[0], "last": " ".join(name[1:]), "full_name": profile["name"],
         "email": profile.get("email") or "", "phone": profile.get("phone") or "",
         "linkedin": profile.get("linkedin_url") or "", "github": profile.get("github_url") or "",
         "location": location, "city": location.split(",")[0].strip(), "country": location.split(",")[-1].strip(),

@@ -165,7 +165,7 @@ def lever(query: str, companies: list[str]) -> list[dict]:
 def smartrecruiters(query: str, companies: list[str]) -> list[dict]:
     """jobs.smartrecruiters.com/<Company> -> public Posting API (has real search + country filter)"""
     jobs = []
-    countries = ("de", "nl", "ie", "lu", "be")  # Germany + the easy-permanent-residence countries
+    countries = ("de", "nl", "ie", "lu", "be", "pl")  # Germany + the easy-permanent-residence countries
     for company, cc in ((c, cc) for c in companies for cc in countries):
         r = get("smartrecruiters", f"https://api.smartrecruiters.com/v1/companies/{company}/postings",
                 {"q": "" if query == "*" else query, "country": cc, "limit": 25})
