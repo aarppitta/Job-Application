@@ -82,6 +82,8 @@ OFF_PROFILE = [
 BLOCKED_AGENCIES = re.compile(r"persona service|jac recruitment", re.I)
 GERMAN_WORDS = {"und", "die", "der", "das", "für", "mit", "wir", "sie", "ist", "zu", "bei", "auf", "den", "unsere", "unser",
                 "deine", "dein", "ihre", "eine", "einen", "werden", "sowie", "oder", "nicht", "auch", "von", "im", "als"}
+DUTCH_WORDS = {"het", "een", "voor", "met", "wij", "jij", "je", "jouw", "zijn", "bij", "ons", "onze", "naar", "ook", "wat", "heb",
+               "hebt", "wordt", "worden", "kennis", "ervaring", "werken", "goede", "functie", "vacature", "bent", "kunt"}
 HER_STACK = re.compile(r"\b(python|fastapi|django|typescript|javascript|node(\.js)?|angular|react|express)\b", re.I)
 OTHER_STACK = re.compile(r"\.net\b|\bc#|\bjava\b(?!script)|\bkotlin\b|\bgolang\b|\bphp\b|\bruby\b", re.I)
 
@@ -91,14 +93,14 @@ def german_level_required(text: str) -> str | None:
     A sentence that calls German a plus / nice to have / advantage doesn't count (Tina: skip only high-German jobs)."""
     for s in re.split(r"(?<=[.!?•\n])\s+|\s+-\s+|\s{2,}", text):
         low = s.lower()
-        if not re.search(r"\b(german|deutsch|deutschkenntnisse)\b", low):  # not "Germany" / "Deutschland"
+        if not re.search(r"\b(german|deutsch|deutschkenntnisse|dutch|nederlands|french|francais|français)\b", low):  # not "Germany"
             continue
         if re.search(r"\b(plus|nice[- ]to[- ]have|advantage|bonus|beneficial|desirable|preferred|helpful|not (a )?(must|required|requirement)|"
                      r"wünschenswert|von vorteil|willkommen)\b", low):
             continue
         if re.search(r"\b(b2|c1|c2)\b|fluent|fließend|fliessend|verhandlungssicher|native|muttersprach|business[- ]level|"
                      r"(very good|excellent|strong|good|sehr gute?|gute?|proficient)\s+(command of\s+|knowledge of\s+|skills in\s+)?(written and spoken\s+)?"
-                     r"(german|deutsch)", low):
+                     r"(german|deutsch|dutch|french)", low):
             return s.strip()[:120]
     return None
 
@@ -109,6 +111,8 @@ def off_profile_jd(job: dict) -> str | None:
     words = re.findall(r"[a-zäöüß]+", text.lower())
     if len(words) > 60 and sum(w in GERMAN_WORDS for w in words) / len(words) > 0.06:
         return "German-language posting"
+    if len(words) > 60 and sum(w in DUTCH_WORDS for w in words) / len(words) > 0.08:
+        return "Dutch-language posting"
     german = german_level_required(text)
     if german:
         return f"needs good German ({german})"

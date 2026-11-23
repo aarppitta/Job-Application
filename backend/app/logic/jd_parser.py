@@ -87,9 +87,19 @@ OTHER_COUNTRIES = {
     "czechia": "Czechia", "prague": "Czechia", "slovakia": "Slovakia", "hungary": "Hungary", "budapest": "Hungary",
     "romania": "Romania", "bulgaria": "Bulgaria", "greece": "Greece", "croatia": "Croatia", "slovenia": "Slovenia",
     "cyprus": "Cyprus", "malta": "Malta", "warsaw": "Poland", "barcelona": "Spain", "madrid": "Spain",
+    # cities in the countries she now targets on site too (easy permanent residence after 2-5 years of work)
+    "rotterdam": "Netherlands", "eindhoven": "Netherlands", "utrecht": "Netherlands", "the hague": "Netherlands",
+    "den haag": "Netherlands", "delft": "Netherlands", "groningen": "Netherlands", "leiden": "Netherlands", "haarlem": "Netherlands",
+    "cork": "Ireland", "galway": "Ireland", "limerick": "Ireland", "graz": "Austria", "linz": "Austria", "salzburg": "Austria",
+    "innsbruck": "Austria", "wien": "Austria", "antwerp": "Belgium", "antwerpen": "Belgium", "ghent": "Belgium", "gent": "Belgium",
+    "leuven": "Belgium", "liege": "Belgium", "bruxelles": "Belgium", "nederland": "Netherlands", "osterreich": "Austria",
     "europe": "Europe", "european union": "Europe", "eu": "Europe", "emea": "Europe", "eea": "Europe",
 }
-# Tina applies to Germany on site, and to remote jobs anywhere in the EU (or "Remote, Europe").
+# Tina applies to Germany and these countries in any work mode (remote, hybrid, on site): skilled workers get permanent
+# residence there after about 2-5 years (Germany 21-27 months with the Blue Card, Ireland Stamp 4 after 2 years,
+# Luxembourg/Austria/Netherlands/Belgium 5 years). Left out on purpose: Sweden and Finland (tightened in 2025/26),
+# Denmark (8 years), France (French B1 required). Plus remote jobs anywhere in the EU (or "Remote, Europe").
+PR_COUNTRIES = {"Netherlands", "Ireland", "Austria", "Luxembourg", "Belgium"}
 EU_COUNTRIES = {
     "Germany", "Austria", "Netherlands", "Poland", "France", "Spain", "Belgium", "Luxembourg", "Ireland", "Portugal",
     "Italy", "Denmark", "Sweden", "Finland", "Estonia", "Latvia", "Lithuania", "Czechia", "Slovakia", "Hungary",

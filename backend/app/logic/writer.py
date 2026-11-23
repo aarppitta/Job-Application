@@ -10,9 +10,15 @@ import re
 
 from app.config import settings
 from app.logic.cv import degree_text
+from app.logic.jd_parser import PR_COUNTRIES
 from app.logic.skills import find_skills, with_implied
 
 INDUSTRIAL = {"SCADA", "WebSCADA", "OPC", "OPC UA", "Modbus", "FINS", "PLC", "MES", "IIoT", "HMI"}
+
+
+def relocate_to(job) -> str:
+    """The job's country when it is one she targets on site (Netherlands, Ireland…); otherwise Germany."""
+    return job.country if getattr(job, "country", None) in PR_COUNTRIES else "Germany"
 
 
 def _join(items: list[str]) -> str:
@@ -60,7 +66,7 @@ def template_cover_letter(profile, job, matched: list[str]) -> str:
     if profile.education:
         lines += [f"I hold an {degree_text(profile.education[0])}.", ""]
     if profile.visa_required is True:
-        lines += [f"I am currently based in {profile.location or 'India'} and ready to relocate to Germany; I am also "
+        lines += [f"I am currently based in {profile.location or 'India'} and ready to relocate to {relocate_to(job)}; I am also "
                   "open to working remotely. I would require visa sponsorship for relocation.", ""]
     lines += ["I would welcome the opportunity to discuss how my background could contribute to your team.", "",
               "Kind regards,", profile.name]
@@ -125,7 +131,7 @@ def _claude_cover_letter(profile, job, matched: list[str]) -> str | None:
         messages=[{"role": "user", "content": (
             f"Candidate facts: {json.dumps(facts)}\nRole: {job.title} at {job.company}\nMatched skills: {matched}\n"
             f"<job_description>{jd}</job_description>\nWrite a cover letter of at most 280 words. Near the end, say clearly "
-            f"that the candidate is ready to relocate to Germany and is also open to working remotely"
+            f"that the candidate is ready to relocate to {relocate_to(job)} and is also open to working remotely"
             f"{' (and would need visa sponsorship to relocate)' if profile.visa_required else ''}. "
             f"Output only the letter.")}],
     )

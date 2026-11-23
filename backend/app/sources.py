@@ -23,7 +23,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from app.logic.jd_parser import detect_country, html_to_text, is_eu_remote, simplify
+from app.logic.jd_parser import PR_COUNTRIES, detect_country, html_to_text, is_eu_remote, simplify
 
 USER_AGENT = "JobApplication/1.0 (personal job search)"
 
@@ -91,9 +91,14 @@ def in_germany(location: str | None) -> bool:
     return detect_country(location) == "Germany"
 
 
+def in_target_country(location: str | None) -> bool:
+    """Germany or one of the easy-permanent-residence countries (Netherlands, Ireland, Austria, Luxembourg, Belgium)."""
+    return in_germany(location) or detect_country(location) in PR_COUNTRIES
+
+
 def wanted(location: str | None, remote: bool = False) -> bool:
-    """Germany (any work mode), or a remote job anywhere in the EU / "Remote, Europe"."""
-    return in_germany(location) or is_eu_remote(location, remote)
+    """Germany / Netherlands / Ireland / Austria / Luxembourg / Belgium (any work mode), or a remote job anywhere in the EU."""
+    return in_target_country(location) or is_eu_remote(location, remote)
 
 
 def parse_date(value) -> datetime | None:
@@ -160,9 +165,10 @@ def lever(query: str, companies: list[str]) -> list[dict]:
 def smartrecruiters(query: str, companies: list[str]) -> list[dict]:
     """jobs.smartrecruiters.com/<Company> -> public Posting API (has real search + country filter)"""
     jobs = []
-    for company in companies:
+    countries = ("de", "nl", "ie", "at", "lu", "be")  # Germany + the easy-permanent-residence countries
+    for company, cc in ((c, cc) for c in companies for cc in countries):
         r = get("smartrecruiters", f"https://api.smartrecruiters.com/v1/companies/{company}/postings",
-                {"q": "" if query == "*" else query, "country": "de", "limit": 25})
+                {"q": "" if query == "*" else query, "country": cc, "limit": 25})
         for item in (r.json().get("content", []) if r else []):
             d = get_cached("smartrecruiters", f"https://api.smartrecruiters.com/v1/companies/{company}/postings/{item['id']}")
             if not d:
@@ -216,8 +222,8 @@ def ashby(query: str, boards: list[str]) -> list[dict]:
         for j in (r.json().get("jobs", []) if r else []):
             places = [j.get("location") or ""] + [x.get("location") or "" for x in j.get("secondaryLocations") or []]
             country = ((j.get("address") or {}).get("postalAddress") or {}).get("addressCountry")
-            german = [p for p in places if in_germany(p)] or [p for p in places if is_eu_remote(p, bool(j.get("isRemote")))]
-            if not j.get("isListed", True) or not (german or country == "Germany"):
+            german = [p for p in places if in_target_country(p)] or [p for p in places if is_eu_remote(p, bool(j.get("isRemote")))]
+            if not j.get("isListed", True) or not (german or country in ({"Germany"} | PR_COUNTRIES)):
                 continue
             if matches(query, j.get("title", ""), j.get("descriptionPlain") or ""):
                 jobs.append({

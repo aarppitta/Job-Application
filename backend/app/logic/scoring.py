@@ -7,7 +7,7 @@ No AI is used here, so a job description can never change its own score.
 import re
 
 from app.logic.dedup import title_words
-from app.logic.jd_parser import is_eu_remote
+from app.logic.jd_parser import PR_COUNTRIES, is_eu_remote
 from app.logic.skills import related_skill, with_implied
 
 DEFAULT_WEIGHTS = {
@@ -109,6 +109,11 @@ def score_job(profile, job, weights: dict | None = None, threshold: float = 80, 
     if job.country == "Germany":
         location = 100
         reasons.append(f"In Germany ({job.location or 'Germany'}).")
+    elif job.country in PR_COUNTRIES:
+        location = 95
+        reasons.append(f"In {job.country} ({job.location}): easy permanent residence after a few years of work.")
+        if job.country in ("Netherlands", "Belgium", "Luxembourg"):
+            concerns.append(f"{job.country}: check the ad doesn't require Dutch/French.")
     elif eu_remote:
         location = 85
         reasons.append(f"Remote within the EU ({job.location}).")

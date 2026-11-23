@@ -247,9 +247,20 @@ def test_remote_jobs_anywhere_in_the_eu_are_wanted():
     assert wanted("Berlin, Germany") and wanted("Munich (hybrid)")
     assert wanted("Remote - Europe") and wanted("EU Remote") and wanted("Remote, EMEA")
     assert wanted("Amsterdam, Netherlands", remote=True) and wanted("Lisbon, Portugal (remote)")
-    assert not wanted("Amsterdam, Netherlands")            # on-site outside Germany
+    assert not wanted("Lisbon, Portugal") and not wanted("Stockholm, Sweden")  # on site outside the target countries
     assert not wanted("Remote - United States") and not wanted("London (remote)") and not wanted("Remote")
     assert detect_country("Neu-Ulm") != "Europe" and is_eu_remote("Warsaw, Poland", True)
+
+
+def test_easy_permanent_residence_countries_any_work_mode():
+    from app.sources import wanted
+    for place in ("Amsterdam, Netherlands", "Eindhoven", "Dublin, Ireland", "Cork", "Vienna, Austria", "Graz",
+                  "Luxembourg", "Brussels, Belgium", "Ghent (hybrid)"):
+        assert wanted(place), place
+    nl = job_from("Python Developer", SCADA_JD, location="Rotterdam, Netherlands")
+    assert nl.country == "Netherlands"
+    assert "permanent residence" in " ".join(score_job(arpita(), nl)["reasons"])
+    assert writer.relocate_to(nl) == "Netherlands" and writer.relocate_to(job_from("Dev", SCADA_JD)) == "Germany"
 
 
 def test_remote_europe_sources(monkeypatch):
