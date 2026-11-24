@@ -65,6 +65,15 @@ def create_tables():
     from app import models  # noqa: F401  (registers the tables)
 
     Base.metadata.create_all(engine)
-    with engine.begin() as conn:
-        for statement in NEW_COLUMNS:
-            conn.execute(text(statement))
+    # The ALTERs need a table lock even when nothing changes. If another session holds one (e.g. a backup whose
+    # connection died mid-dump), waiting would freeze every cold start of the app: give up after 3 s instead —
+    # the schema is already up to date in that case, and the next start tries again.
+    try:
+        with engine.begin() as conn:
+            if engine.dialect.name == "postgresql":
+                conn.execute(text("SET LOCAL lock_timeout = '3s'"))
+            for statement in NEW_COLUMNS:
+                conn.execute(text(statement))
+    except Exception as exc:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("Schema update skipped this time (table busy): %s", str(exc)[:200])
