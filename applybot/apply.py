@@ -205,6 +205,8 @@ def posted_salary(job: dict) -> dict:
 COUNTRY_SALARY = {
     "Poland": {"salary_eur_per_year": 55000, "monthly": "20000",
                "salary_text": "PLN 18,000-22,000 gross per month (about EUR 50,000-60,000 per year)"},
+    # Spain: remote jobs only (Tina, 25 Nov — citizenship takes 10 years there); local market range
+    "Spain": {"salary_eur_per_year": 48000, "monthly": "4000", "salary_text": "EUR 45,000-50,000 per year"},
 }
 
 
