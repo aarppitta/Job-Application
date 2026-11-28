@@ -70,7 +70,7 @@ class Api:
 OFF_PROFILE = [
     ("senior/lead", r"\b(senior|sr\.?|staff|lead|principal|head of|architect|director|manager|expert|experienced)\b|\b(iii|iv)\b"),
     ("embedded/low-level", r"\b(embedded|firmware|low[- ]level|fpga|kernel|real[- ]time)\b|\bc\+\+|\brust\b"),
-    ("Java/.NET/Go/iOS", r"\bjava\b(?!script)|\bkotlin\b|\.net\b|\bc#|\bgolang\b|\bgo\)|\bios\b|\bswift\b"),
+    ("Java/.NET/Go/iOS", r"\bjava\b(?!script)|\bkotlin\b|\.net\b|\bc#|\bgolang\b|\bgo\)|\bgo (backend|developer|engineer|software)\b|\bios\b|\bswift\b"),
     ("other stack", r"\b(android|ruby|rails|odoo|php|scala|elixir|salesforce|sap|sharepoint|microsoft 365)\b"),
     ("AI/ML-heavy", r"\b(ai|ml|machine learning|genai|llm|agentic|agents?)\b"),
     ("not development", r"\b(analyst|analytics engineer|consultant|sales|support engineer|customer success|field application|"
